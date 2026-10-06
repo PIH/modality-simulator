@@ -51,7 +51,7 @@ order-status overlay, MPPS, storage commitment.
 
 | Repo | Contents |
 |------|----------|
-| `PIH/openmrs-contrib-modality-simulator` (this one) | The simulator's code, tests, Dockerfile, CI; publishes `partnersinhealth/modality-simulator` to Docker Hub |
+| `PIH/modality-simulator` (this one) | The simulator's code, tests, Dockerfile, CI; publishes `partnersinhealth/modality-simulator` to Docker Hub |
 | `distro-tools` | Only `docker/services/modality-simulator.yaml` and `modality-simulator.env.defaults`, plus compose test coverage |
 
 This is the same split as `openhim-advapacs-mediator`.

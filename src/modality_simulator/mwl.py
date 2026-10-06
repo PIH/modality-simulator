@@ -99,6 +99,11 @@ def query_worklist(cfg: Config) -> list[WorklistEntry]:
     assoc = dicom_net.associate(cfg, [ModalityWorklistInformationFind])
     try:
         return collect(assoc.send_c_find(build_query(cfg), ModalityWorklistInformationFind), cfg)
+    except (ValueError, RuntimeError) as e:  # no worklist presentation context accepted, or the association is gone
+        raise GatewayError(
+            f"The gateway ({cfg.gateway_ae} at {cfg.gateway_host}:{cfg.gateway_port}) accepted the association "
+            f"but not the worklist query: check that its worklist is enabled and that {cfg.calling_ae} may query it"
+        ) from e
     finally:
         assoc.release()
 

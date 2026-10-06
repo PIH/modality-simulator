@@ -2,6 +2,7 @@ import pytest
 from pydicom.dataset import Dataset
 
 from factories import config
+from modality_simulator import mwl
 from modality_simulator.errors import GatewayError
 from modality_simulator.mwl import WorklistEntry, build_query, collect, parse_entry
 
@@ -95,3 +96,29 @@ def test_build_query_asks_for_every_field_we_read_and_filters_by_station():
     step = query.ScheduledProcedureStepSequence[0]
     assert step.ScheduledStationAETitle == "SIM_US"
     assert step.Modality == ""
+
+
+class RefusingAssociation:
+    """Established, but the peer accepted no worklist presentation context."""
+
+    def __init__(self, error):
+        self.error = error
+        self.released = False
+
+    def send_c_find(self, query, sop_class):
+        raise self.error
+        yield  # a generator, like pynetdicom's: the error surfaces on iteration
+
+    def release(self):
+        self.released = True
+
+
+@pytest.mark.parametrize("error", [ValueError("No presentation context accepted"), RuntimeError("gone")])
+def test_query_worklist_explains_a_gateway_that_accepts_the_association_but_not_the_query(monkeypatch, error):
+    fake = RefusingAssociation(error)
+    monkeypatch.setattr(mwl.dicom_net, "associate", lambda cfg, syntaxes: fake)
+    with pytest.raises(GatewayError) as e:
+        mwl.query_worklist(config(calling_ae="SIM_X"))
+    assert "accepted the association but not the worklist query" in str(e.value)
+    assert "SIM_X" in str(e.value) and "TEST_GW" in str(e.value)
+    assert fake.released

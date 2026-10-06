@@ -61,6 +61,8 @@ def stamp(datasets: Sequence[Dataset], entry: WorklistEntry, cfg: Config, now: d
         for keyword in _LEFTOVER_IDENTIFIERS:
             if keyword in ds:
                 delattr(ds, keyword)
+        # Text never read still holds raw bytes in the file's own charset: decode it before relabelling.
+        ds.decode()
         ds.SpecificCharacterSet = "ISO_IR 192"
         ds.PatientName = entry.patient_name
         ds.PatientID = entry.patient_id
@@ -82,6 +84,11 @@ def stamp(datasets: Sequence[Dataset], entry: WorklistEntry, cfg: Config, now: d
         ds.InstanceNumber = number
         ds.ContentDate = date
         ds.ContentTime = time
+        ds.AcquisitionDate = date
+        ds.AcquisitionTime = time
+        ds.AcquisitionDateTime = date + time
+        ds.InstanceCreationDate = date
+        ds.InstanceCreationTime = time
         ds.Modality = entry.modality
         ds.InstitutionName = cfg.institution
         ds.StationName = cfg.calling_ae

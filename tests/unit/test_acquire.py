@@ -3,9 +3,10 @@ from dataclasses import asdict
 from datetime import datetime
 
 import pytest
+from pydicom import dcmread
 from pydicom.dataset import Dataset
 
-from factories import config, entry
+from factories import config, entry, write_library_file
 from modality_simulator import acquire as acquire_module
 from modality_simulator.acquire import InstanceStatus, acquire, send_all, stamp
 from modality_simulator.errors import GatewayError
@@ -33,12 +34,45 @@ def test_stamp_sets_patient_study_and_new_uids():
         assert ds.StudyInstanceUID == "1.2.826.0.1.99"
         assert ds.StudyDescription == e.procedure
         assert ds.StudyDate == "20261006" and ds.StudyTime == "143005"
+        assert ds.AcquisitionDate == "20261006" and ds.AcquisitionTime == "143005"
+        assert ds.AcquisitionDateTime == "20261006143005"
+        assert ds.InstanceCreationDate == "20261006" and ds.InstanceCreationTime == "143005"
         assert ds.Modality == "CT"
         assert ds.InstitutionName == "Test Hospital"
         assert ds.StationName == "SIM_CT"
         assert ds.SpecificCharacterSet == "ISO_IR 192"
         assert ds.file_meta.MediaStorageSOPInstanceUID == ds.SOPInstanceUID
         assert ds.file_meta.SourceApplicationEntityTitle == "SIM_CT"
+
+
+def test_stamp_replaces_the_library_files_old_dates():
+    e = entry("CR")
+    ds = synthetic(e)[0]
+    ds.AcquisitionDate = "19990101"
+    ds.InstanceCreationDate = "19990101"
+    stamped = stamp([ds], e, config(), NOW)[0]
+    assert stamped.AcquisitionDate == "20261006"
+    assert stamped.InstanceCreationDate == "20261006"
+
+
+def test_stamp_keeps_untouched_latin1_text_correct_as_utf8(tmp_path):
+    e = entry("CR")
+    write_library_file(tmp_path / "lib.dcm")
+    path = tmp_path / "latin1.dcm"
+    source = dcmread(tmp_path / "lib.dcm")
+    source.SpecificCharacterSet = "ISO_IR 100"
+    # As a library file holds it: raw bytes in the file's charset, never decoded.
+    source.add_new(0x00081040, "LO", "Département".encode("latin-1"))
+    source.save_as(path, enforce_file_format=True)
+    loaded = dcmread(path)  # InstitutionalDepartmentName is still undecoded bytes
+    stamp([loaded], e, config(), NOW)
+    # Decoded under the original charset, before the label changed to UTF-8.
+    assert not loaded.get_item(0x00081040).is_raw
+    assert loaded.InstitutionalDepartmentName == "Département"
+    loaded.save_as(tmp_path / "out.dcm", enforce_file_format=True)
+    again = dcmread(tmp_path / "out.dcm")
+    assert again.SpecificCharacterSet == "ISO_IR 192"
+    assert again.InstitutionalDepartmentName == "Département"
 
 
 def test_stamp_generates_a_study_uid_when_the_worklist_has_none():

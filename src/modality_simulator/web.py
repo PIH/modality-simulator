@@ -124,7 +124,10 @@ def create_app(
         entry = next((e for e in entries if e.acquirable and e.accession_number == accession), None)
         if entry is None:
             return page(entries, notice=f"Accession {accession} isn't in the worklist any more", status=404)
-        do_acquire(entry)
+        try:
+            do_acquire(entry)
+        except Exception as e:
+            return page(entries, error=f"Acquiring accession {accession} failed unexpectedly: {e}", status=500)
         return redirect(url_for("index"), code=303)
 
     @app.get("/health")

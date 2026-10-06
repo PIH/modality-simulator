@@ -50,7 +50,8 @@ class Harness:
     def query(self):
         return list(self.entries)
 
-    def do_acquire(self, e):
+    def do_acquire(self, e, only_if_new=False):
+        self.only_if_new = only_if_new
         self.acquired.append(e.accession_number)
         r = result(e, ok=e.accession_number not in self.failing)
         self.log.append(r)
@@ -94,7 +95,7 @@ def test_skips_accessions_already_stored_even_by_hand_or_before_a_restart(tmp_pa
 def test_run_once_raises_when_the_worklist_cant_be_read(tmp_path):
     def down():
         raise GatewayError("down")
-    auto = AutoAcquirer(down, lambda e: None, AcquisitionLog(tmp_path / "acquisitions.jsonl"))
+    auto = AutoAcquirer(down, lambda e, only_if_new=False: None, AcquisitionLog(tmp_path / "acquisitions.jsonl"))
     with pytest.raises(GatewayError):
         auto.run_once()
 
@@ -113,3 +114,61 @@ def test_run_forever_keeps_polling_through_errors_until_stopped(tmp_path):
 
     AutoAcquirer(flaky, lambda e: None, AcquisitionLog(tmp_path / "a.jsonl")).run_forever(0, stop)
     assert len(calls) == 3
+
+
+def test_auto_acquire_asks_to_skip_what_is_already_stored(tmp_path):
+    h = Harness(tmp_path, [entry(accession="A1")])
+    h.auto().run_once()
+    assert h.only_if_new is True
+
+
+def test_an_unexpected_error_on_one_entry_does_not_starve_the_rest(tmp_path):
+    h = Harness(tmp_path, [entry(accession="BOOM"), entry(accession="A2")])
+    real = h.do_acquire
+
+    def acquire(e, only_if_new=False):
+        if e.accession_number == "BOOM":
+            raise RuntimeError("odd file")
+        return real(e, only_if_new)
+
+    AutoAcquirer(h.query, acquire, h.log).run_once()
+    assert h.acquired == ["A2"]
+
+
+def test_an_accession_whose_log_cant_be_written_is_still_attempted_at_most_max_attempts_times(tmp_path):
+    attempts = []
+
+    def unlogged_failure(e, only_if_new=False):
+        attempts.append(e.accession_number)
+        return result(e, ok=False)  # as if the log write failed: nothing reaches the log
+
+    auto = AutoAcquirer(lambda: [entry(accession="BAD")], unlogged_failure, AcquisitionLog(tmp_path / "a.jsonl"))
+    for _ in range(MAX_ATTEMPTS + 2):
+        auto.run_once()
+    assert attempts == ["BAD"] * MAX_ATTEMPTS
+
+
+def test_an_accession_stored_but_not_logged_is_not_sent_again(tmp_path):
+    attempts = []
+
+    def unlogged_success(e, only_if_new=False):
+        attempts.append(e.accession_number)
+        return result(e)
+
+    auto = AutoAcquirer(lambda: [entry(accession="A1")], unlogged_success, AcquisitionLog(tmp_path / "a.jsonl"))
+    auto.run_once()
+    auto.run_once()
+    assert attempts == ["A1"]
+
+
+def test_an_unexpected_error_counts_as_an_attempt(tmp_path):
+    attempts = []
+
+    def boom(e, only_if_new=False):
+        attempts.append(1)
+        raise RuntimeError("x")
+
+    auto = AutoAcquirer(lambda: [entry(accession="A1")], boom, AcquisitionLog(tmp_path / "a.jsonl"))
+    for _ in range(MAX_ATTEMPTS + 2):
+        auto.run_once()
+    assert len(attempts) == MAX_ATTEMPTS

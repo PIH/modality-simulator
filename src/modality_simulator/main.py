@@ -6,12 +6,13 @@ import logging
 import os
 import sys
 import threading
+from datetime import datetime
 
 import waitress
 from flask import Flask
 
 from modality_simulator import acquire, config, mwl, web
-from modality_simulator.auto import AutoAcquirer
+from modality_simulator.auto import MAX_ATTEMPTS, AutoAcquirer
 from modality_simulator.errors import ConfigError
 from modality_simulator.mwl import WorklistEntry
 from modality_simulator.results import AcquisitionLog
@@ -28,10 +29,28 @@ def build(cfg: config.Config) -> tuple[Flask, AutoAcquirer | None]:
     def query() -> list[WorklistEntry]:
         return mwl.query_worklist(cfg)
 
-    def do_acquire(entry: WorklistEntry) -> acquire.AcquisitionResult:
+    def do_acquire(entry: WorklistEntry, only_if_new: bool = False) -> acquire.AcquisitionResult | None:
+        """Acquires entry and logs the outcome. only_if_new (auto-acquire) skips an accession that is
+        already stored or out of attempts, checked under the lock; the console's Acquire can re-send."""
         with lock:
-            result = acquire.acquire(entry, cfg)
-            results.append(result)
+            if only_if_new:
+                history = results.history().get(entry.accession_number)
+                if history and (history.stored or history.failures >= MAX_ATTEMPTS):
+                    return None
+            try:
+                result = acquire.acquire(entry, cfg)
+            except Exception as e:
+                log.exception("Acquiring accession %s failed unexpectedly", entry.accession_number)
+                result = acquire.AcquisitionResult(
+                    accession_number=entry.accession_number, patient_id=entry.patient_id,
+                    modality=entry.modality, study_instance_uid="", source="",
+                    at=datetime.now().isoformat(timespec="seconds"), error=f"Unexpected error: {e}",
+                )
+            try:
+                results.append(result)
+            except Exception:
+                log.exception("Couldn't write the result for accession %s to the acquisition log",
+                              entry.accession_number)
         if result.ok:
             log.info("Stored %d image(s) for accession %s (images from %s)",
                      len(result.instances), result.accession_number, result.source)

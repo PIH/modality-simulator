@@ -106,3 +106,16 @@ def test_health_does_not_touch_the_gateway(tmp_path):
     assert response.status_code == 200
     assert response.get_json() == {"status": "ok"}
     assert console.queries == 0
+
+
+def test_an_unexpected_error_while_acquiring_renders_the_page_with_the_message(tmp_path):
+    c = Console(tmp_path, [entry("CR", accession="A1")])
+
+    def boom(e):
+        raise RuntimeError("disk on fire")
+    client = create_app(config(), c.query, boom, c.log).test_client()
+    response = client.post("/acquire", data={"accession": "A1"})
+    assert response.status_code == 500
+    body = response.get_data(as_text=True)
+    assert "disk on fire" in body and "Modality simulator" in body
+

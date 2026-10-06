@@ -5,6 +5,7 @@ from pathlib import Path
 from pydicom.dataset import Dataset
 from pydicom.uid import RLELossless, generate_uid
 
+from modality_simulator.acquire import AcquisitionResult, InstanceStatus
 from modality_simulator.config import Config
 from modality_simulator.images import synthetic
 from modality_simulator.mwl import WorklistEntry
@@ -39,3 +40,12 @@ def write_library_file(path: Path, modality: str = "CR", compressed: bool = Fals
     path.parent.mkdir(parents=True, exist_ok=True)
     ds.save_as(path, enforce_file_format=True)
     return ds
+
+
+def result(e: WorklistEntry, ok: bool = True, error: str = "") -> AcquisitionResult:
+    return AcquisitionResult(
+        accession_number=e.accession_number, patient_id=e.patient_id, modality=e.modality,
+        study_instance_uid="1.2.3", source="synthetic", at="2026-10-06T12:00:00",
+        instances=(InstanceStatus("1.2.3.4", 0x0000 if ok else 0xA700),),
+        error="" if ok else (error or "1 of 1 images weren't stored: 0xA700"),
+    )

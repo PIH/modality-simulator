@@ -1,0 +1,21 @@
+# Orthanc with its worklist plugin, standing in for the AdvaPACS gateway.
+services:
+  gateway:
+    image: orthancteam/orthanc:latest
+    environment:
+      ORTHANC__NAME: stand-in-gateway
+      ORTHANC__DICOM_AET: TEST_GW
+      ORTHANC__DICOM_CHECK_CALLED_AET: "true"
+      ORTHANC__DICOM_ALWAYS_ALLOW_FIND: "true"
+      ORTHANC__DICOM_ALWAYS_ALLOW_STORE: "true"
+      # Orthanc rejects worklist queries from AEs it doesn't know, whatever DicomAlwaysAllowFind says.
+      ORTHANC__DICOM_MODALITIES: '{"sim": ["SIM_TEST", "127.0.0.1", 11112]}'
+      ORTHANC__AUTHENTICATION_ENABLED: "false"
+      WORKLISTS_PLUGIN_ENABLED: "true"
+      ORTHANC__WORKLISTS__ENABLE: "true"
+      ORTHANC__WORKLISTS__DATABASE: /worklists
+    volumes:
+      - ./worklists:/worklists:ro
+    ports:
+      - "14242:4242"
+      - "18042:8042"

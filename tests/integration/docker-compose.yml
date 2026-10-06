@@ -1,7 +1,7 @@
 # Orthanc with its worklist plugin, standing in for the AdvaPACS gateway.
 services:
   gateway:
-    image: orthancteam/orthanc:latest
+    image: orthancteam/orthanc:26.9.1
     environment:
       ORTHANC__NAME: stand-in-gateway
       ORTHANC__DICOM_AET: TEST_GW

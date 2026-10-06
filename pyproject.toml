@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modality-simulator"
+version = "0.1.0"
+description = "A fake CR/US/CT modality for testing an AdvaPACS gateway's worklist and image flow"
+requires-python = ">=3.12"
+dependencies = [
+    "pydicom>=3.0,<4",
+    "pynetdicom>=3.0,<4",
+    "numpy>=1.26",
+    "pillow>=10.1",
+    "pylibjpeg[all]>=2.0",
+    "flask>=3.0",
+    "waitress>=3.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "requests>=2.31"]
+
+[project.scripts]
+modality-simulator = "modality_simulator.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
+markers = ["integration: needs the Orthanc stand-in gateway (docker compose)"]
+addopts = "-m 'not integration'"

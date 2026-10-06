@@ -29,16 +29,16 @@ and its configuration is read from the environment at module import. Its images 
 `/hospital-records`, which may contain real patient data and must never go into a published
 image.
 
-This project replaces it for the pure-modality case. The sidecar is a reference only (roughly
-150 useful lines: `query_mwl`, `cstore_to`, and the tag stamping in `_acquire_and_send`). The
+This project replaces it for the pure-modality case. The sidecar is a reference onl.. The
 code here is written fresh, test-first.
 
 ## Scope
 
 In scope:
 
-- DICOM MWL C-FIND against the gateway (its native worklist; AE `ADVAPACS_GW_01`, port 11112 in
-  the reference setup — see imladris `docs/issues/advapacs-dicom-mwl-native.md`).
+- DICOM MWL C-FIND against the gateway's native worklist (see imladris
+  `docs/issues/advapacs-dicom-mwl-native.md`). The gateway's AE title, host and port are always
+  configuration, never hardcoded; the initial PIH setup uses AE `PIH_KOL-CI_GW`.
 - C-STORE of images for a selected worklist entry back to the gateway.
 - Generated images by default; optional mounted library of real DICOM files.
 - A small web console with an Acquire button per entry; optional auto-acquire.
@@ -80,7 +80,8 @@ Each is a module with one job and a small interface. None reads the environment 
 
 - **`config`** — Reads the `MODALITY_SIMULATOR_*` environment variables (listed under the
   fragment below) into a frozen dataclass. Validates them and raises with a clear message on anything missing or
-  invalid. Called once from `main`.
+  invalid (AE titles must be 1–16 characters with no backslash or control characters).
+  Called once from `main`.
 - **`mwl`** — `query_worklist(cfg) -> list[WorklistEntry]`. Opens an association to the gateway
   (passing the called AE), sends an MWL C-FIND filtered by the configured modalities and,
   optionally, scheduled station AE. Parses each match into a `WorklistEntry` (patient ID, name,
@@ -133,7 +134,7 @@ Each is a module with one job and a small interface. None reads the environment 
 | `MODALITY_SIMULATOR_HOST_PORT` | `8095` |
 | `MODALITY_SIMULATOR_GATEWAY_HOST` | `host.docker.internal` |
 | `MODALITY_SIMULATOR_GATEWAY_PORT` | `11112` |
-| `MODALITY_SIMULATOR_GATEWAY_AE` | required, no default (`:?must be set: …`) |
+| `MODALITY_SIMULATOR_GATEWAY_AE` | required, no default (`:?must be set: …`); e.g. `PIH_KOL-CI_GW` |
 | `MODALITY_SIMULATOR_CALLING_AE` | `SIM_MODALITY` |
 | `MODALITY_SIMULATOR_MODALITIES` | `CR,US,CT` |
 | `MODALITY_SIMULATOR_STATION_AE_FILTER` | empty (no filter) |

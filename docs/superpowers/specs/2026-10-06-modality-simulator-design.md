@@ -97,10 +97,16 @@ Each is a module with one job and a small interface. None reads the environment 
   worklist entry (patient, accession, study UID — from the entry or newly generated — new series
   and SOP instance UIDs, dates, modality, institution, station AE), and C-STOREs each to the
   gateway on one association. Records the status of each instance. Succeeds only if every
-  instance is stored. Appends the result to a log under `/data`.
+  instance is stored. The caller appends the result to the log (see `results`).
 - **`auto`** — Optional background loop: every `POLL_SECONDS`, query the worklist and acquire
   each entry not already acquired. A failed accession is retried for up to 3 polls, then marked
-  failed. State is kept under `/data` so restarts don't re-send.
+  failed. Which accessions are done or have failed is worked out from the acquisition log under
+  `/data`, so restarts don't re-send and there's no second state file to keep in step.
+- **`dicom_net`** — `associate(cfg, abstract_syntaxes)`: the one place that opens an association
+  to the gateway (calling AE, called AE, timeouts) and turns a failed one into a `GatewayError`
+  that says whether the connection was refused, rejected or aborted, and what to check.
+- **`results`** — `AcquisitionLog`: appends each `AcquisitionResult` to
+  `/data/acquisitions.jsonl` and reads back recent results and per-accession history.
 - **`web`** — Flask app: a page listing worklist entries with an Acquire button each, recent
   acquisition results, and an error banner when the gateway can't be reached. `POST` endpoint
   to acquire one entry. `GET /health`.
@@ -120,8 +126,9 @@ Each is a module with one job and a small interface. None reads the environment 
   gateway; the gateway has no healthcheck; and it only listens on 11112 after AdvaPACS cloud has
   pushed its configuration. The simulator copes with an unreachable gateway instead (see Errors).
 - Volumes: `modality-simulator-data:/data` and
-  `${MODALITY_SIMULATOR_IMAGE_DIR:-./modality-simulator-images}:/images:ro`. The relative default
-  resolves to the instance directory, which is the compose project directory (same pattern as
+  `${MODALITY_SIMULATOR_IMAGE_DIR?}:/images:ro`, with the default `./modality-simulator-images`
+  in `.env.defaults` (distro-tools keeps every default there; `compose.bats` checks it). The
+  relative default resolves to the instance directory, which is the compose project directory (same pattern as
   `SMOKE_TESTS_OUTPUT_DIR` in `openmrs-smoke-tests.yaml`). With no DICOM in it, images are
   generated.
 
@@ -141,20 +148,23 @@ Each is a module with one job and a small interface. None reads the environment 
 | `MODALITY_SIMULATOR_INSTITUTION` | `OpenMRS Modality Simulator` |
 | `MODALITY_SIMULATOR_AUTO_ACQUIRE` | `false` |
 | `MODALITY_SIMULATOR_POLL_SECONDS` | `30` |
-| `MODALITY_SIMULATOR_IMAGE_DIR` | empty (uses `./modality-simulator-images`) |
+| `MODALITY_SIMULATOR_IMAGE_DIR` | `./modality-simulator-images` (in the instance directory) |
 
-The fragment passes these to the container under the same names, so the image reads
-`MODALITY_SIMULATOR_*` directly.
+The fragment passes the settings the simulator reads (`GATEWAY_*`, `CALLING_AE`, `MODALITIES`,
+`STATION_AE_FILTER`, `INSTITUTION`, `AUTO_ACQUIRE`, `POLL_SECONDS`) to the container under the same
+names, so the image reads `MODALITY_SIMULATOR_*` directly. `IMAGE_NAME`, `IMAGE_TAG`, `HOST_PORT`
+and `IMAGE_DIR` are used only by Compose.
 
-The README notes that AdvaPACS may require the calling AE (`SIM_MODALITY`) to be registered on
-the gateway before it accepts associations.
+The README and distro-tools `docs/services.md` note that the calling AE (`SIM_MODALITY`) must be
+set up as a Remote AE in AdvaPACS (Configuration > Remote AEs, AE title matching exactly) before
+the gateway accepts it.
 
 ## Error handling
 
 - **Configuration:** invalid or missing settings stop the process at startup with a message
   naming the setting (for example, `MODALITY_SIMULATOR_GATEWAY_AE`).
-- **Gateway unreachable or association rejected:** the console shows a banner with the reason
-  pynetdicom reports; the worklist is retried on each page load or poll.
+- **Gateway unreachable or association rejected:** the console shows a banner saying whether the
+  connection was refused, the association rejected or aborted, and what to check; the worklist is retried on each page load or poll.
 - **C-FIND failure status:** shown as an error, never as an empty worklist.
 - **Entries without an AccessionNumber:** listed but can't be acquired (button disabled, reason
   shown). Sending them would put the study in AdvaPACS's Validation Queue.
@@ -188,7 +198,8 @@ Test fixtures are synthetic only; no real patient data anywhere in the repo or i
 - Pushes to `main` publish `partnersinhealth/modality-simulator:latest`; `vX.Y.Z` tags publish
   that version.
 - Multi-arch images: `linux/amd64` and `linux/arm64`.
-- Docker Hub credentials come from PIH organization secrets.
+- Same conventions as `openhim-advapacs-mediator`: Docker Hub login `pihci` with the
+  `DOCKERHUB_PASSWORD` org secret, ci-dashboard notifications, and the distro-tools image scan.
 
 ## Fixes over the imladris sidecar
 

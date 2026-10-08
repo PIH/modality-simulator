@@ -15,6 +15,7 @@ from modality_simulator import acquire, config, mwl, web
 from modality_simulator.auto import MAX_ATTEMPTS, AutoAcquirer
 from modality_simulator.errors import ConfigError
 from modality_simulator.mwl import WorklistEntry
+from modality_simulator.recent_logs import FORMAT, RecentLogs
 from modality_simulator.results import AcquisitionLog
 
 log = logging.getLogger("modality_simulator")
@@ -22,7 +23,7 @@ log = logging.getLogger("modality_simulator")
 PORT = 8080
 
 
-def build(cfg: config.Config) -> tuple[Flask, AutoAcquirer | None]:
+def build(cfg: config.Config, recent: RecentLogs | None = None) -> tuple[Flask, AutoAcquirer | None]:
     results = AcquisitionLog(cfg.data_dir / "acquisitions.jsonl")
     lock = threading.Lock()  # one acquisition at a time, from the console or auto-acquire
 
@@ -59,18 +60,21 @@ def build(cfg: config.Config) -> tuple[Flask, AutoAcquirer | None]:
         return result
 
     auto = AutoAcquirer(query, do_acquire, results) if cfg.auto_acquire else None
-    return web.create_app(cfg, query, do_acquire, results), auto
+    log_lines = recent.lines if recent is not None else list
+    return web.create_app(cfg, query, do_acquire, results, log_lines), auto
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(level=logging.INFO, format=FORMAT)
+    recent = RecentLogs()
+    logging.getLogger().addHandler(recent)
     logging.getLogger("pynetdicom").setLevel(logging.WARNING)
     try:
         cfg = config.load(os.environ)
     except ConfigError as e:
         print(f"modality-simulator: {e}", file=sys.stderr)
         sys.exit(2)
-    app, auto = build(cfg)
+    app, auto = build(cfg, recent)
     if auto is not None:
         threading.Thread(
             target=auto.run_forever, args=(cfg.poll_seconds, threading.Event()),

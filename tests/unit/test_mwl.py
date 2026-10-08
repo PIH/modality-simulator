@@ -96,6 +96,7 @@ def test_build_query_asks_for_every_field_we_read_and_filters_by_station():
     step = query.ScheduledProcedureStepSequence[0]
     assert step.ScheduledStationAETitle == "SIM_US"
     assert step.Modality == ""
+    assert step.ScheduledProcedureStepStatus == ""
 
 
 class RefusingAssociation:
@@ -122,3 +123,28 @@ def test_query_worklist_explains_a_gateway_that_accepts_the_association_but_not_
     assert "accepted the association but not the worklist query" in str(e.value)
     assert "SIM_X" in str(e.value) and "TEST_GW" in str(e.value)
     assert fake.released
+
+
+class AnsweringAssociation:
+    def __init__(self, responses):
+        self.responses = responses
+
+    def send_c_find(self, query, sop_class):
+        yield from self.responses
+
+    def release(self):
+        pass
+
+
+def test_query_worklist_logs_the_query_and_every_raw_response(monkeypatch, caplog):
+    responses = [(status(0xFF00), identifier("A1")), (status(0xFF00), identifier("A2", modality="MR")),
+                 (status(0x0000), None)]
+    monkeypatch.setattr(mwl.dicom_net, "associate", lambda cfg, syntaxes: AnsweringAssociation(responses))
+    with caplog.at_level("INFO", logger="modality_simulator.mwl"):
+        entries = mwl.query_worklist(config(calling_ae="SIM_X"))
+    assert [e.accession_number for e in entries] == ["A1"]
+    messages = [r.getMessage() for r in caplog.records]
+    assert "SIM_X" in messages[0] and "TEST_GW" in messages[0] and "Scheduled Procedure Step Status" in messages[0]
+    assert "0xFF00" in messages[1] and "A1" in messages[1]
+    assert "0xFF00" in messages[2] and "A2" in messages[2]  # filtered out of the worklist, but logged
+    assert "0x0000" in messages[3]

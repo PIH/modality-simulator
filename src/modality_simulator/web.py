@@ -1,4 +1,4 @@
-"""The console: the worklist with an Acquire button per entry, and recent results."""
+"""The console: the worklist with an Acquire button per entry, recent results, and the recent log."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ PAGE = """<!doctype html>
   .why { color: #666; font-size: .9em; }
   .ok { color: #1a7f37; }
   .failed { color: #b42318; }
+  textarea { width: 100%; height: 24rem; font-family: ui-monospace, monospace; font-size: .8em; }
 </style>
 </head>
 <body>
@@ -84,6 +85,11 @@ PAGE = """<!doctype html>
 {% else %}
 <p>Nothing acquired yet.</p>
 {% endif %}
+
+<h2>Recent log</h2>
+<p class="why">Includes each worklist query and every raw response from the gateway, newest at the bottom.</p>
+<textarea id="log" readonly wrap="off" aria-label="Recent log">{{ log_lines | join("\n") }}</textarea>
+<script>const l = document.getElementById("log"); l.scrollTop = l.scrollHeight;</script>
 </body>
 </html>
 """
@@ -94,6 +100,7 @@ def create_app(
     query: Callable[[], list[WorklistEntry]],
     do_acquire: Callable[[WorklistEntry], AcquisitionResult],
     log: AcquisitionLog,
+    log_lines: Callable[[], list[str]] = list,
 ) -> Flask:
     app = Flask(__name__)
 
@@ -107,6 +114,7 @@ def create_app(
         html = render_template_string(
             PAGE, cfg=cfg, entries=entries, error=error, notice=notice,
             history=log.history(), recent=log.recent(20), max_attempts=MAX_ATTEMPTS,
+            log_lines=log_lines(),
         )
         return html, status
 

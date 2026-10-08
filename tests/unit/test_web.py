@@ -5,13 +5,13 @@ from modality_simulator.web import create_app
 
 
 class Console:
-    def __init__(self, tmp_path, entries=(), gateway_error=None, cfg=None):
+    def __init__(self, tmp_path, entries=(), gateway_error=None, cfg=None, log_lines=()):
         self.log = AcquisitionLog(tmp_path / "acquisitions.jsonl")
         self.entries = list(entries)
         self.gateway_error = gateway_error
         self.queries = 0
         self.acquired = []
-        app = create_app(cfg or config(), self.query, self.do_acquire, self.log)
+        app = create_app(cfg or config(), self.query, self.do_acquire, self.log, lambda: list(log_lines))
         self.client = app.test_client()
 
     def query(self):
@@ -119,3 +119,11 @@ def test_an_unexpected_error_while_acquiring_renders_the_page_with_the_message(t
     body = response.get_data(as_text=True)
     assert "disk on fire" in body and "Modality simulator" in body
 
+
+
+def test_the_recent_log_is_shown_escaped_at_the_bottom(tmp_path):
+    lines = ["12:00:00 INFO modality_simulator.mwl: C-FIND response", "(0010,0010) Patient's Name PN: <b>X</b>"]
+    html = Console(tmp_path, log_lines=lines).client.get("/").get_data(as_text=True)
+    assert "C-FIND response" in html
+    assert "&lt;b&gt;X&lt;/b&gt;" in html
+    assert html.index("Recent acquisitions") < html.index("<textarea")

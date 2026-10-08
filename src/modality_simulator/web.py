@@ -36,6 +36,12 @@ PAGE = """<!doctype html>
   &middot; auto-acquire {{ "on" if cfg.auto_acquire else "off" }}</p>
 {% if error %}<div class="banner" role="alert">{{ error }}</div>{% endif %}
 {% if notice %}<div class="banner" role="status">{{ notice }}</div>{% endif %}
+{% if can_probe_mpps %}
+<form method="post" action="{{ url_for('probe_mpps_check') }}">
+  <button>Check MPPS support</button>
+  <span class="why">Asks the gateway whether it accepts MPPS (exam progress messages). Sends no MPPS message.</span>
+</form>
+{% endif %}
 
 <h2>Worklist</h2>
 {% if entries %}
@@ -101,6 +107,7 @@ def create_app(
     do_acquire: Callable[[WorklistEntry], AcquisitionResult],
     log: AcquisitionLog,
     log_lines: Callable[[], list[str]] = list,
+    probe_mpps: Callable[[], str] | None = None,
 ) -> Flask:
     app = Flask(__name__)
 
@@ -114,7 +121,7 @@ def create_app(
         html = render_template_string(
             PAGE, cfg=cfg, entries=entries, error=error, notice=notice,
             history=log.history(), recent=log.recent(20), max_attempts=MAX_ATTEMPTS,
-            log_lines=log_lines(),
+            log_lines=log_lines(), can_probe_mpps=probe_mpps is not None,
         )
         return html, status
 
@@ -137,6 +144,14 @@ def create_app(
         except Exception as e:
             return page(entries, error=f"Acquiring accession {accession} failed unexpectedly: {e}", status=500)
         return redirect(url_for("index"), code=303)
+
+    @app.post("/probe-mpps")
+    def probe_mpps_check():
+        if probe_mpps is None:
+            return page([], error="The MPPS check isn't available", status=404)
+        notice = probe_mpps()
+        entries, error = worklist()
+        return page(entries, error, notice)
 
     @app.get("/health")
     def health():

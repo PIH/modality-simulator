@@ -127,3 +127,16 @@ def test_the_recent_log_is_shown_escaped_at_the_bottom(tmp_path):
     assert "C-FIND response" in html
     assert "&lt;b&gt;X&lt;/b&gt;" in html
     assert html.index("Recent acquisitions") < html.index("<textarea")
+
+
+def test_the_mpps_check_shows_its_result(tmp_path):
+    c = Console(tmp_path)
+    client = create_app(config(), c.query, c.do_acquire, c.log, probe_mpps=lambda: "MPPS: not today").test_client()
+    assert 'action="/probe-mpps"' in client.get("/").get_data(as_text=True)
+    response = client.post("/probe-mpps")
+    assert response.status_code == 200
+    assert "MPPS: not today" in response.get_data(as_text=True)
+
+
+def test_there_is_no_mpps_check_without_a_probe(tmp_path):
+    assert "/probe-mpps" not in Console(tmp_path).client.get("/").get_data(as_text=True)

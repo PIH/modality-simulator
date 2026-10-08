@@ -82,3 +82,10 @@ def test_build_shows_the_recent_log_in_the_console(monkeypatch, tmp_path):
     recent.handle(logging.makeLogRecord({"msg": "hello from the log", "levelname": "INFO"}))
     app, _ = build(config(data_dir=tmp_path), recent)
     assert "hello from the log" in app.test_client().get("/").get_data(as_text=True)
+
+
+def test_build_offers_the_mpps_check(monkeypatch, tmp_path):
+    monkeypatch.setattr(mwl, "query_worklist", lambda c: [])
+    monkeypatch.setattr(main_module.probe, "probe_mpps", lambda c: f"probed {c.gateway_ae}")
+    app, _ = build(config(data_dir=tmp_path))
+    assert "probed TEST_GW" in app.test_client().post("/probe-mpps").get_data(as_text=True)

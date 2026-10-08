@@ -72,6 +72,14 @@ times. The acquisition log in `/data` records what's been done, so a restart doe
   failing status.
 - `/health` reports only that the simulator is running, not whether the gateway is reachable.
 
+## Logs
+
+The console's **Recent log** box shows the last 500 log records, the same ones written to the
+container's output (`docker logs`). Each worklist query is logged with the exact C-FIND it sent and
+every raw response from the gateway, including entries the simulator then filters out by modality
+or station, so you can see what the gateway itself returns (e.g. each step's Scheduled Procedure
+Step Status). The responses include patient details, so treat the logs like the worklist itself.
+
 ## Development
 
 ```bash

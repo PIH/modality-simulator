@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 
 from factories import config, entry, result
@@ -5,6 +7,7 @@ from modality_simulator import acquire, main as main_module, mwl
 from modality_simulator.results import AcquisitionLog
 from modality_simulator.auto import AutoAcquirer
 from modality_simulator.main import build, main
+from modality_simulator.recent_logs import RecentLogs
 
 
 def test_missing_gateway_ae_exits_2_saying_why(monkeypatch, capsys):
@@ -71,3 +74,11 @@ def test_a_manual_acquire_can_send_again_deliberately(monkeypatch, tmp_path):
     log.append(result(e))
     client.post("/acquire", data={"accession": "A1"})
     assert len(sent) == 1
+
+
+def test_build_shows_the_recent_log_in_the_console(monkeypatch, tmp_path):
+    monkeypatch.setattr(mwl, "query_worklist", lambda c: [])
+    recent = RecentLogs()
+    recent.handle(logging.makeLogRecord({"msg": "hello from the log", "levelname": "INFO"}))
+    app, _ = build(config(data_dir=tmp_path), recent)
+    assert "hello from the log" in app.test_client().get("/").get_data(as_text=True)

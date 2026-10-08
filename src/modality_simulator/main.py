@@ -11,7 +11,7 @@ from datetime import datetime
 import waitress
 from flask import Flask
 
-from modality_simulator import acquire, config, mwl, probe, web
+from modality_simulator import acquire, config, mwl, web
 from modality_simulator.auto import MAX_ATTEMPTS, AutoAcquirer
 from modality_simulator.errors import ConfigError
 from modality_simulator.mwl import WorklistEntry
@@ -61,7 +61,7 @@ def build(cfg: config.Config, recent: RecentLogs | None = None) -> tuple[Flask, 
 
     auto = AutoAcquirer(query, do_acquire, results) if cfg.auto_acquire else None
     log_lines = recent.lines if recent is not None else list
-    return web.create_app(cfg, query, do_acquire, results, log_lines, lambda: probe.probe_mpps(cfg)), auto
+    return web.create_app(cfg, query, do_acquire, results, log_lines), auto
 
 
 def main() -> None:

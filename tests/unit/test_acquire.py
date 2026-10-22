@@ -96,6 +96,49 @@ def test_stamp_removes_the_source_patients_leftover_identifiers():
         assert keyword not in stamped
 
 
+def test_stamp_takes_the_issuer_of_patient_id_from_the_worklist_over_the_configured_one():
+    e = entry("CR", issuer_of_patient_id="WORKLIST-EMR")
+    assert stamp(synthetic(e), e, config(patient_id_issuer="CONFIGURED"), NOW)[0].IssuerOfPatientID == "WORKLIST-EMR"
+
+
+def test_stamp_falls_back_to_the_configured_issuer_of_patient_id():
+    e = entry("CR")
+    assert stamp(synthetic(e), e, config(patient_id_issuer="CONFIGURED"), NOW)[0].IssuerOfPatientID == "CONFIGURED"
+
+
+def test_stamp_leaves_out_the_issuer_of_patient_id_when_there_is_none():
+    e = entry("CR")
+    ds = synthetic(e)[0]
+    ds.IssuerOfPatientID = "OLD-HOSPITAL"
+    assert "IssuerOfPatientID" not in stamp([ds], e, config(), NOW)[0]
+
+
+def test_acquire_saves_a_copy_of_what_it_sends(tmp_path):
+    sent = []
+    def send(datasets, cfg):
+        sent.extend(datasets)
+        return sent_ok(datasets, cfg)
+    acquire(entry("CT", accession="ACC/7"), config(save_sent=True, data_dir=tmp_path), now=lambda: NOW, send=send,
+            pick_images=lambda e, cfg: (synthetic(e), "synthetic"))
+    saved = sorted((tmp_path / "sent" / "ACC_7").iterdir())
+    assert sorted(p.name for p in saved) == sorted(f"{ds.SOPInstanceUID}.dcm" for ds in sent)
+    copy = dcmread(saved[0])
+    assert copy.AccessionNumber == "ACC/7" and copy.PatientID == sent[0].PatientID
+
+
+def test_acquire_saves_nothing_unless_asked(tmp_path):
+    acquire(entry("CR"), config(data_dir=tmp_path), send=sent_ok, pick_images=lambda e, cfg: (synthetic(e), "synthetic"))
+    assert not (tmp_path / "sent").exists()
+
+
+def test_a_copy_that_cant_be_saved_doesnt_stop_the_send(tmp_path):
+    blocker = tmp_path / "not-a-dir"
+    blocker.write_text("")
+    result = acquire(entry("CR"), config(save_sent=True, data_dir=blocker), send=sent_ok,
+                     pick_images=lambda e, cfg: (synthetic(e), "synthetic"))
+    assert result.ok
+
+
 def test_acquire_succeeds_when_every_image_is_stored():
     result = acquire(entry("CT"), config(), now=lambda: NOW, send=sent_ok,
                      pick_images=lambda e, cfg: (synthetic(e), "synthetic"))

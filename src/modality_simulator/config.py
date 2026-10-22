@@ -27,6 +27,8 @@ class Config:
     modalities: tuple[str, ...] = SUPPORTED_MODALITIES
     station_ae_filter: str = ""
     institution: str = "OpenMRS Modality Simulator"
+    patient_id_issuer: str = ""
+    save_sent: bool = False
     auto_acquire: bool = False
     poll_seconds: int = 30
     image_dir: Path = Path("/images")
@@ -52,6 +54,8 @@ def load(env: Mapping[str, str]) -> Config:
         modalities=_modalities(get("MODALITIES", ",".join(SUPPORTED_MODALITIES))),
         station_ae_filter=_ae_title("STATION_AE_FILTER", get("STATION_AE_FILTER", ""), allow_empty=True),
         institution=get("INSTITUTION", "OpenMRS Modality Simulator"),
+        patient_id_issuer=get("PATIENT_ID_ISSUER", ""),
+        save_sent=_bool("SAVE_SENT", get("SAVE_SENT", "false")),
         auto_acquire=_bool("AUTO_ACQUIRE", get("AUTO_ACQUIRE", "false")),
         poll_seconds=_int("POLL_SECONDS", get("POLL_SECONDS", "30"), 1, 86400),
     )

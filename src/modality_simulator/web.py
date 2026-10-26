@@ -52,7 +52,7 @@ PAGE = """<!doctype html>
   {% set h = history.get(e.accession_number) if e.accession_number else none %}
   <tr>
     <td>{{ e.patient_name }}</td><td>{{ e.patient_id }}</td><td>{{ e.accession_number }}</td>
-    <td>{{ e.procedure }}</td><td>{{ e.modality }}</td><td>{{ e.station_ae }}</td><td>{{ e.scheduled_date }}</td>
+    <td>{{ e.procedure }}</td><td>{{ e.modality }}</td><td>{{ e.station_ae }}</td><td>{{ e.scheduled }}</td>
     <td>
       {% if h and h.stored %}<span class="ok">stored</span>
       {% elif h and h.failures %}<span class="failed">failed {{ h.failures }}&times;{% if cfg.auto_acquire and h.failures >= max_attempts %} (auto-acquire gave up){% endif %}</span>
@@ -112,8 +112,9 @@ def create_app(
     app = Flask(__name__)
 
     def worklist() -> tuple[list[WorklistEntry], str]:
+        """The worklist, latest scheduled first."""
         try:
-            return query(), ""
+            return sorted(query(), key=lambda e: e.scheduled_sort_key, reverse=True), ""
         except GatewayError as e:
             return [], str(e)
 

@@ -32,11 +32,27 @@ class WorklistEntry:
     station_ae: str = ""
     scheduled_date: str = ""
     issuer_of_patient_id: str = ""
+    scheduled_time: str = ""
 
     @property
     def acquirable(self) -> bool:
         """Images sent without an accession number land in AdvaPACS's Validation Queue."""
         return bool(self.accession_number)
+
+    @property
+    def scheduled(self) -> str:
+        """The scheduled start as "YYYY-MM-DD HH:MM", or as much of it as the gateway sent."""
+        d = self.scheduled_date
+        if len(d) != 8 or not d.isdigit():
+            return d
+        date = f"{d[:4]}-{d[4:6]}-{d[6:]}"
+        t = _time_digits(self.scheduled_time)
+        return f"{date} {t[:2]}:{t[2:4]}" if len(t) >= 4 else date
+
+    @property
+    def scheduled_sort_key(self) -> str:
+        """Orders entries by scheduled start; entries without a date sort first."""
+        return self.scheduled_date + _time_digits(self.scheduled_time).ljust(6, "0")
 
 
 def build_query(cfg: Config) -> Dataset:
@@ -54,6 +70,7 @@ def build_query(cfg: Config) -> Dataset:
     step.Modality = ""
     step.ScheduledStationAETitle = cfg.station_ae_filter
     step.ScheduledProcedureStepStartDate = ""
+    step.ScheduledProcedureStepStartTime = ""
     # Not read into entries: asked for so the raw responses in the log show what the gateway reports.
     step.ScheduledProcedureStepStatus = ""
     ds.ScheduledProcedureStepSequence = [step]
@@ -75,6 +92,7 @@ def parse_entry(identifier: Dataset) -> WorklistEntry:
         study_instance_uid=_text(identifier, "StudyInstanceUID"),
         station_ae=_text(step, "ScheduledStationAETitle"),
         scheduled_date=_text(step, "ScheduledProcedureStepStartDate"),
+        scheduled_time=_text(step, "ScheduledProcedureStepStartTime"),
     )
 
 
@@ -132,3 +150,8 @@ def _logged(responses: Iterable[tuple[Dataset, Dataset | None]]) -> Iterator[tup
 
 def _text(ds: Dataset, keyword: str) -> str:
     return str(ds.get(keyword, "") or "").strip()
+
+
+def _time_digits(tm: str) -> str:
+    """A DICOM TM's HHMMSS digits, also accepting the older HH:MM:SS form."""
+    return tm.replace(":", "").split(".")[0]

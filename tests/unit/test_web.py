@@ -36,6 +36,19 @@ def test_lists_entries_with_acquire_buttons(tmp_path):
     assert "TEST_GW" in html
 
 
+def test_the_worklist_shows_the_scheduled_date_and_time_latest_first(tmp_path):
+    entries = [
+        entry(accession="ACC-MORNING", scheduled_date="20261006", scheduled_time="0900"),
+        entry(accession="ACC-NO-DATE", scheduled_date=""),
+        entry(accession="ACC-NEXT-DAY", scheduled_date="20261007", scheduled_time="080000"),
+        entry(accession="ACC-AFTERNOON", scheduled_date="20261006", scheduled_time="143000"),
+    ]
+    html = Console(tmp_path, entries).client.get("/").get_data(as_text=True)
+    order = ["ACC-NEXT-DAY", "ACC-AFTERNOON", "ACC-MORNING", "ACC-NO-DATE"]
+    assert [html.index(f'value="{a}"') for a in order] == sorted(html.index(f'value="{a}"') for a in order)
+    assert "<td>2026-10-06 14:30</td>" in html
+
+
 def test_patient_names_are_escaped(tmp_path):
     html = Console(tmp_path, [entry(patient_name="<script>x</script>")]).client.get("/").get_data(as_text=True)
     assert "<script>x" not in html

@@ -26,6 +26,7 @@ def identifier(accession="ACC-1", modality="CR", station="SIM_CR", name="DOE^JAN
     step.Modality = modality
     step.ScheduledStationAETitle = station
     step.ScheduledProcedureStepStartDate = "20261006"
+    step.ScheduledProcedureStepStartTime = "143000"
     ds.ScheduledProcedureStepSequence = [step]
     return ds
 
@@ -35,6 +36,7 @@ def test_parse_entry_reads_patient_order_and_step():
         patient_id="P-1", patient_name="DOE^JANE", birth_date="19800101", sex="F",
         accession_number="ACC-1", procedure="Chest PA", modality="CR",
         study_instance_uid="1.2.3", station_ae="SIM_CR", scheduled_date="20261006",
+        scheduled_time="143000",
     )
 
 
@@ -88,6 +90,20 @@ def test_entry_without_accession_is_listed_but_not_acquirable():
     assert not entries[0].acquirable
 
 
+@pytest.mark.parametrize("date, time, shown", [
+    ("20261006", "143000", "2026-10-06 14:30"),
+    ("20261006", "1430", "2026-10-06 14:30"),
+    ("20261006", "143005.123", "2026-10-06 14:30"),
+    ("20261006", "14:30:05", "2026-10-06 14:30"),
+    ("20261006", "", "2026-10-06"),
+    ("20261006", "14", "2026-10-06"),
+    ("", "143000", ""),
+    ("2026", "", "2026"),
+])
+def test_scheduled_is_shown_as_an_iso_date_and_time(date, time, shown):
+    assert WorklistEntry("P-1", "", "", "", "A", "", "CR", scheduled_date=date, scheduled_time=time).scheduled == shown
+
+
 def test_build_query_asks_for_every_field_we_read_and_filters_by_station():
     query = build_query(config(station_ae_filter="SIM_US"))
     for keyword in ("PatientName", "PatientID", "PatientBirthDate", "PatientSex",
@@ -96,6 +112,8 @@ def test_build_query_asks_for_every_field_we_read_and_filters_by_station():
     step = query.ScheduledProcedureStepSequence[0]
     assert step.ScheduledStationAETitle == "SIM_US"
     assert step.Modality == ""
+    assert step.ScheduledProcedureStepStartDate == ""
+    assert step.ScheduledProcedureStepStartTime == ""
     assert step.ScheduledProcedureStepStatus == ""
 
 

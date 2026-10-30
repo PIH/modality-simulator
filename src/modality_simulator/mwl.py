@@ -32,6 +32,7 @@ class WorklistEntry:
     station_ae: str = ""
     scheduled_date: str = ""
     scheduled_time: str = ""
+    issuer_of_patient_id: str = ""
 
     @property
     def acquirable(self) -> bool:
@@ -58,6 +59,7 @@ def build_query(cfg: Config) -> Dataset:
     ds = Dataset()
     ds.PatientName = ""
     ds.PatientID = ""
+    ds.IssuerOfPatientID = ""
     ds.PatientBirthDate = ""
     ds.PatientSex = ""
     ds.AccessionNumber = ""
@@ -80,6 +82,7 @@ def parse_entry(identifier: Dataset) -> WorklistEntry:
     step = steps[0]
     return WorklistEntry(
         patient_id=_text(identifier, "PatientID"),
+        issuer_of_patient_id=_text(identifier, "IssuerOfPatientID"),
         patient_name=_text(identifier, "PatientName"),
         birth_date=_text(identifier, "PatientBirthDate"),
         sex=_text(identifier, "PatientSex"),

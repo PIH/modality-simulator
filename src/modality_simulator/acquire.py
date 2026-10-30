@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Sequence
@@ -13,6 +15,8 @@ from modality_simulator import dicom_net, images
 from modality_simulator.config import Config
 from modality_simulator.errors import GatewayError
 from modality_simulator.mwl import WorklistEntry
+
+log = logging.getLogger(__name__)
 
 # Identifiers a library file may still carry from the patient it came from. Left in, they'd
 # contradict the worklist entry; RequestAttributesSequence holds the old accession number, which
@@ -66,6 +70,10 @@ def stamp(datasets: Sequence[Dataset], entry: WorklistEntry, cfg: Config, now: d
         ds.SpecificCharacterSet = "ISO_IR 192"
         ds.PatientName = entry.patient_name
         ds.PatientID = entry.patient_id
+        # AdvaPACS matches the patient ID within the issuer's domain: the worklist's, else the configured one.
+        issuer = entry.issuer_of_patient_id or cfg.patient_id_issuer
+        if issuer:
+            ds.IssuerOfPatientID = issuer
         ds.PatientBirthDate = entry.birth_date
         ds.PatientSex = entry.sex
         ds.AccessionNumber = entry.accession_number
@@ -96,6 +104,19 @@ def stamp(datasets: Sequence[Dataset], entry: WorklistEntry, cfg: Config, now: d
         ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
         ds.file_meta.SourceApplicationEntityTitle = cfg.calling_ae
     return list(datasets)
+
+
+def save_copies(datasets: Sequence[Dataset], entry: WorklistEntry, cfg: Config) -> None:
+    """Writes datasets, as sent, under data_dir/sent/<accession>/; a failure is logged, not raised."""
+    folder = cfg.data_dir / "sent" / re.sub(r"[^\w.-]", "_", entry.accession_number)
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        for ds in datasets:
+            ds.save_as(folder / f"{ds.SOPInstanceUID}.dcm", enforce_file_format=True)
+    except OSError:
+        log.exception("Couldn't save a copy of the images for accession %s in %s", entry.accession_number, folder)
+        return
+    log.info("Saved a copy of the %d image(s) for accession %s in %s", len(datasets), entry.accession_number, folder)
 
 
 def send_all(datasets: Sequence[Dataset], cfg: Config) -> tuple[InstanceStatus, ...]:
@@ -139,6 +160,8 @@ def acquire(
         )
     datasets, source = pick_images(entry, cfg)
     stamped = stamp(datasets, entry, cfg, at)
+    if cfg.save_sent:
+        save_copies(stamped, entry, cfg)
     study_uid = str(stamped[0].StudyInstanceUID)
     try:
         statuses = send(stamped, cfg)

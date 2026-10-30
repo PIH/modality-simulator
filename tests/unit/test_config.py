@@ -21,6 +21,8 @@ def test_defaults_need_only_the_gateway_ae():
     assert cfg.modalities == ("CR", "US", "CT")
     assert cfg.station_ae_filter == ""
     assert cfg.institution == "OpenMRS Modality Simulator"
+    assert cfg.patient_id_issuer == ""
+    assert cfg.save_sent is False
     assert cfg.auto_acquire is False
     assert cfg.poll_seconds == 30
     assert cfg.image_dir == Path("/images")
@@ -38,12 +40,12 @@ def test_reads_every_setting():
     cfg = load(env(
         GATEWAY_HOST="10.0.0.5", GATEWAY_PORT="104", CALLING_AE="SIM_CR",
         MODALITIES=" cr, us ", STATION_AE_FILTER="SIM_CR", INSTITUTION="Test Hospital",
-        AUTO_ACQUIRE="TRUE", POLL_SECONDS="5",
+        PATIENT_ID_ISSUER="EMR", SAVE_SENT="yes", AUTO_ACQUIRE="TRUE", POLL_SECONDS="5",
     ))
     assert cfg == Config(
         gateway_ae="PIH_KOL-CI_GW", gateway_host="10.0.0.5", gateway_port=104,
         calling_ae="SIM_CR", modalities=("CR", "US"), station_ae_filter="SIM_CR",
-        institution="Test Hospital", auto_acquire=True, poll_seconds=5,
+        institution="Test Hospital", patient_id_issuer="EMR", save_sent=True, auto_acquire=True, poll_seconds=5,
     )
 
 

@@ -17,6 +17,7 @@ def identifier(accession="ACC-1", modality="CR", station="SIM_CR", name="DOE^JAN
     ds = Dataset()
     ds.PatientName = name
     ds.PatientID = "P-1"
+    ds.IssuerOfPatientID = "EMR"
     ds.PatientBirthDate = "19800101"
     ds.PatientSex = "F"
     ds.AccessionNumber = accession
@@ -37,6 +38,7 @@ def test_parse_entry_reads_patient_order_and_step():
         accession_number="ACC-1", procedure="Chest PA", modality="CR",
         study_instance_uid="1.2.3", station_ae="SIM_CR", scheduled_date="20261006",
         scheduled_time="143000",
+        issuer_of_patient_id="EMR",
     )
 
 
@@ -106,7 +108,7 @@ def test_scheduled_is_shown_as_an_iso_date_and_time(date, time, shown):
 
 def test_build_query_asks_for_every_field_we_read_and_filters_by_station():
     query = build_query(config(station_ae_filter="SIM_US"))
-    for keyword in ("PatientName", "PatientID", "PatientBirthDate", "PatientSex",
+    for keyword in ("PatientName", "PatientID", "IssuerOfPatientID", "PatientBirthDate", "PatientSex",
                     "AccessionNumber", "RequestedProcedureDescription", "StudyInstanceUID"):
         assert keyword in query
     step = query.ScheduledProcedureStepSequence[0]

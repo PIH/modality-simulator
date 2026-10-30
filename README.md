@@ -28,6 +28,8 @@ The console is at `http://<host>:8095`. See distro-tools' `docs/services.md` for
 | `MODALITY_SIMULATOR_MODALITIES` | `CR,US,CT` | which worklist entries to show |
 | `MODALITY_SIMULATOR_STATION_AE_FILTER` | empty | only entries scheduled for this station AE |
 | `MODALITY_SIMULATOR_INSTITUTION` | `OpenMRS Modality Simulator` | written into every image |
+| `MODALITY_SIMULATOR_PATIENT_ID_ISSUER` | empty | Issuer of Patient ID for images whose worklist entry has none |
+| `MODALITY_SIMULATOR_SAVE_SENT` | `false` | keep a copy of every image sent, in `/data/sent/<accession>/` |
 | `MODALITY_SIMULATOR_AUTO_ACQUIRE` | `false` | acquire every new entry without clicking |
 | `MODALITY_SIMULATOR_POLL_SECONDS` | `30` | how often auto-acquire reads the worklist |
 

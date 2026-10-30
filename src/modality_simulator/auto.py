@@ -23,10 +23,13 @@ class AutoAcquirer:
         query: Callable[[], list[WorklistEntry]],
         do_acquire: Callable[..., AcquisitionResult | None],
         log: AcquisitionLog,
+        name: str = "",
     ):
         self._query = query
         self._acquire = do_acquire
         self._log = log
+        self.name = name
+        self._prefix = f"{name}: " if name else ""  # the station's calling AE, on each log line
         # A backstop for when the log can't be written: per process, at most MAX_ATTEMPTS tries, none once stored.
         self._attempts: Counter[str] = Counter()
         self._stored: set[str] = set()
@@ -47,7 +50,7 @@ class AutoAcquirer:
                 # only_if_new: the acquirer re-checks under its lock, in case the console is acquiring it right now.
                 result = self._acquire(entry, only_if_new=True)
             except Exception:
-                logger.exception("Auto-acquire of accession %s failed unexpectedly", accession)
+                logger.exception("%sAuto-acquire of accession %s failed unexpectedly", self._prefix, accession)
                 continue
             if result is not None and result.ok:
                 self._stored.add(accession)
@@ -57,7 +60,7 @@ class AutoAcquirer:
             try:
                 self.run_once()
             except GatewayError as e:
-                logger.warning("Auto-acquire couldn't read the worklist: %s", e)
+                logger.warning("%sAuto-acquire couldn't read the worklist: %s", self._prefix, e)
             except Exception:
-                logger.exception("Auto-acquire poll failed")
+                logger.exception("%sAuto-acquire poll failed", self._prefix)
             stop.wait(poll_seconds)

@@ -1,3 +1,4 @@
+import logging
 import threading
 
 import pytest
@@ -172,3 +173,15 @@ def test_an_unexpected_error_counts_as_an_attempt(tmp_path):
     for _ in range(MAX_ATTEMPTS + 2):
         auto.run_once()
     assert len(attempts) == MAX_ATTEMPTS
+
+
+def test_auto_acquire_log_lines_name_the_station(tmp_path, caplog):
+    h = Harness(tmp_path, [entry(accession="A1")])
+
+    def boom(e, only_if_new=False):
+        raise RuntimeError("odd file")
+    auto = AutoAcquirer(h.query, boom, h.log, name="SIM_US")
+    with caplog.at_level(logging.ERROR):
+        auto.run_once()
+    [record] = caplog.records
+    assert record.getMessage().startswith("SIM_US: Auto-acquire of accession A1 failed unexpectedly")

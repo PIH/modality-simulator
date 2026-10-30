@@ -2,7 +2,7 @@ from dataclasses import replace
 
 import pytest
 
-from conftest import find_study, instance_count
+from conftest import find_study, instance_count, station_name
 from factories import write_library_file
 from modality_simulator.acquire import acquire
 from modality_simulator.errors import GatewayError
@@ -62,3 +62,24 @@ def test_acquire_sends_a_compressed_library_file(gateway, tmp_path):
     assert result.source == "chest.dcm"
     study = find_study("ACC-IT-LIB1")
     assert study["PatientMainDicomTags"]["PatientID"] == "IT-P4"
+
+
+def two_stations(gateway):
+    cr = replace(gateway, name="X-ray", calling_ae="SIM_CR", modalities=("CR",))
+    us = replace(gateway, name="Ultrasound", calling_ae="SIM_US", modalities=("US",))
+    return cr, us
+
+
+def test_two_stations_each_see_only_their_own_modality(gateway):
+    cr, us = two_stations(gateway)
+    assert {e.accession_number for e in query_worklist(cr)} == {"ACC-IT-CR1", "ACC-IT-LIB1", ""}
+    assert [e.accession_number for e in query_worklist(us)] == ["ACC-IT-US1"]
+
+
+def test_images_carry_the_stations_calling_ae(gateway, tmp_path):
+    _, us = two_stations(gateway)
+    us = replace(us, image_dir=tmp_path / "no-library")
+    result = acquire(entry_for(us, "ACC-IT-US1"), us)
+    assert result.ok, result.error
+    # The other acquire tests store ACC-IT-US1 too, as SIM_TEST: check only this acquisition's images.
+    assert {station_name(i.sop_instance_uid) for i in result.instances} == {"SIM_US"}

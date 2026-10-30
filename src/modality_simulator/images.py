@@ -14,7 +14,7 @@ from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 from pynetdicom.sop_class import CTImageStorage, ComputedRadiographyImageStorage, UltrasoundImageStorage
 
-from modality_simulator.config import Config
+from modality_simulator.config import Station
 from modality_simulator.mwl import WorklistEntry
 
 log = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def synthetic(entry: WorklistEntry) -> list[Dataset]:
     raise ValueError(f"No generated image for modality {entry.modality!r}")
 
 
-def images_for(entry: WorklistEntry, cfg: Config, choose: Chooser = random.choice) -> tuple[list[Dataset], str]:
+def images_for(entry: WorklistEntry, cfg: Station, choose: Chooser = random.choice) -> tuple[list[Dataset], str]:
     """The datasets to send for entry, unstamped, and where they came from: a file name, or "synthetic"."""
     found = from_library(cfg.image_dir, entry.modality, choose)
     if found is not None:

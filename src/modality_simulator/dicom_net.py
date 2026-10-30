@@ -5,14 +5,14 @@ from __future__ import annotations
 from pynetdicom import AE
 from pynetdicom.association import Association
 
-from modality_simulator.config import Config
+from modality_simulator.config import Station
 from modality_simulator.errors import GatewayError
 
 CONNECT_TIMEOUT_SECONDS = 10
 RESPONSE_TIMEOUT_SECONDS = 30
 
 
-def associate(cfg: Config, abstract_syntaxes: list[str]) -> Association:
+def associate(cfg: Station, abstract_syntaxes: list[str]) -> Association:
     """An established association from cfg.calling_ae to the gateway, proposing each syntax."""
     ae = AE(ae_title=cfg.calling_ae)
     ae.connection_timeout = CONNECT_TIMEOUT_SECONDS

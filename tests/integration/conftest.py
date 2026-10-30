@@ -9,7 +9,7 @@ import requests
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
-from modality_simulator.config import Config
+from modality_simulator.config import Station
 
 HERE = Path(__file__).parent
 COMPOSE = ["docker", "compose", "-f", str(HERE / "docker-compose.yml"), "-p", "modality-simulator-it"]
@@ -75,7 +75,7 @@ def gateway():
     subprocess.run([*COMPOSE, "up", "-d"], check=True)
     try:
         wait_for(f"{REST}/system")
-        yield Config(gateway_ae="TEST_GW", gateway_host="localhost", gateway_port=14242, calling_ae="SIM_TEST")
+        yield Station(name="Test", calling_ae="SIM_TEST", gateway_ae="TEST_GW", gateway_host="localhost", gateway_port=14242)
     finally:
         subprocess.run([*COMPOSE, "down", "-v"], check=False)
 
@@ -95,3 +95,18 @@ def instance_count(study: dict) -> int:
     response = requests.get(f"{REST}/studies/{study['ID']}/instances", timeout=10)
     response.raise_for_status()
     return len(response.json())
+
+
+
+def station_name(sop_instance_uid: str) -> str:
+    """The StationName of the stored instance with this SOP Instance UID."""
+    response = requests.post(
+        f"{REST}/tools/find",
+        json={"Level": "Instance", "Query": {"SOPInstanceUID": sop_instance_uid}},
+        timeout=10,
+    )
+    response.raise_for_status()
+    [instance_id] = response.json()
+    tags = requests.get(f"{REST}/instances/{instance_id}/simplified-tags", timeout=10)
+    tags.raise_for_status()
+    return tags.json().get("StationName", "")

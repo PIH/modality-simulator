@@ -10,7 +10,7 @@ from pydicom.dataset import Dataset
 from pynetdicom.sop_class import ModalityWorklistInformationFind
 
 from modality_simulator import dicom_net
-from modality_simulator.config import Config
+from modality_simulator.config import Station
 from modality_simulator.errors import GatewayError
 
 log = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ class WorklistEntry:
         return self.scheduled_date + _time_digits(self.scheduled_time).ljust(6, "0")
 
 
-def build_query(cfg: Config) -> Dataset:
+def build_query(cfg: Station) -> Dataset:
     ds = Dataset()
     ds.PatientName = ""
     ds.PatientID = ""
@@ -93,7 +93,7 @@ def parse_entry(identifier: Dataset) -> WorklistEntry:
     )
 
 
-def collect(responses: Iterable[tuple[Dataset, Dataset | None]], cfg: Config) -> list[WorklistEntry]:
+def collect(responses: Iterable[tuple[Dataset, Dataset | None]], cfg: Station) -> list[WorklistEntry]:
     """The entries in a C-FIND's responses for cfg's modalities (and station, if filtered)."""
     entries = []
     for status, identifier in responses:
@@ -118,7 +118,7 @@ def collect(responses: Iterable[tuple[Dataset, Dataset | None]], cfg: Config) ->
     raise GatewayError("The worklist query ended without a final status")
 
 
-def query_worklist(cfg: Config) -> list[WorklistEntry]:
+def query_worklist(cfg: Station) -> list[WorklistEntry]:
     query = build_query(cfg)
     log.info("Worklist C-FIND from %s to %s at %s:%d:\n%s",
              cfg.calling_ae, cfg.gateway_ae, cfg.gateway_host, cfg.gateway_port, query)

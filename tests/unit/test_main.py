@@ -2,20 +2,20 @@ import logging
 
 import pytest
 
-from factories import config, entry, result
-from modality_simulator import acquire, main as main_module, mwl
+from factories import config, entry, result, station
+from modality_simulator import acquire, config as config_module, main as main_module, mwl
 from modality_simulator.results import AcquisitionLog
 from modality_simulator.auto import AutoAcquirer
 from modality_simulator.main import build, main
 from modality_simulator.recent_logs import RecentLogs
 
 
-def test_missing_gateway_ae_exits_2_saying_why(monkeypatch, capsys):
-    monkeypatch.delenv("MODALITY_SIMULATOR_GATEWAY_AE", raising=False)
+def test_a_missing_stations_file_exits_2_saying_why(monkeypatch, capsys, tmp_path):
+    monkeypatch.setattr(config_module, "CONFIG_PATH", tmp_path / "stations.yaml")
     with pytest.raises(SystemExit) as exit_info:
         main()
     assert exit_info.value.code == 2
-    assert "MODALITY_SIMULATOR_GATEWAY_AE must be set" in capsys.readouterr().err
+    assert "No stations file at" in capsys.readouterr().err
 
 
 def test_build_serves_the_console_without_auto_acquire_by_default(tmp_path):
@@ -25,14 +25,14 @@ def test_build_serves_the_console_without_auto_acquire_by_default(tmp_path):
 
 
 def test_build_makes_an_auto_acquirer_when_it_is_on(tmp_path):
-    _, auto = build(config(data_dir=tmp_path, auto_acquire=True))
+    _, auto = build(config(station(auto_acquire=True), data_dir=tmp_path))
     assert isinstance(auto, AutoAcquirer)
 
 
 def console(monkeypatch, tmp_path, **cfg):
     e = entry(accession="A1")
     monkeypatch.setattr(mwl, "query_worklist", lambda c: [e])
-    app, auto = build(config(data_dir=tmp_path, **cfg))
+    app, auto = build(config(station(**cfg), data_dir=tmp_path))
     return e, app.test_client(), auto, AcquisitionLog(tmp_path / "acquisitions.jsonl")
 
 

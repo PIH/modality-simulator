@@ -8,7 +8,7 @@ from flask import Flask, redirect, render_template_string, request, url_for
 
 from modality_simulator.acquire import AcquisitionResult
 from modality_simulator.auto import MAX_ATTEMPTS
-from modality_simulator.config import Config
+from modality_simulator.config import Station
 from modality_simulator.errors import GatewayError
 from modality_simulator.mwl import WorklistEntry
 from modality_simulator.results import AcquisitionLog
@@ -96,7 +96,7 @@ PAGE = """<!doctype html>
 
 
 def create_app(
-    cfg: Config,
+    cfg: Station,
     query: Callable[[], list[WorklistEntry]],
     do_acquire: Callable[[WorklistEntry], AcquisitionResult],
     log: AcquisitionLog,

@@ -6,13 +6,17 @@ from pydicom.dataset import Dataset
 from pydicom.uid import RLELossless, generate_uid
 
 from modality_simulator.acquire import AcquisitionResult, InstanceStatus
-from modality_simulator.config import Config
+from modality_simulator.config import Config, Station
 from modality_simulator.images import synthetic
 from modality_simulator.mwl import WorklistEntry
 
 
-def config(**overrides) -> Config:
-    return Config(**{"gateway_ae": "TEST_GW", **overrides})
+def station(**overrides) -> Station:
+    return Station(**{"name": "X-ray", "calling_ae": "SIM_CR", "gateway_ae": "TEST_GW", **overrides})
+
+
+def config(*stations: Station, **overrides) -> Config:
+    return Config(**{"stations": stations or (station(),), **overrides})
 
 
 def entry(modality: str = "CR", accession: str = "ACC-1", **overrides) -> WorklistEntry:

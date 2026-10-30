@@ -1,4 +1,4 @@
-from factories import config, entry, result
+from factories import station, entry, result
 from modality_simulator.errors import GatewayError
 from modality_simulator.results import AcquisitionLog
 from modality_simulator.web import create_app
@@ -11,7 +11,7 @@ class Console:
         self.gateway_error = gateway_error
         self.queries = 0
         self.acquired = []
-        app = create_app(cfg or config(), self.query, self.do_acquire, self.log, lambda: list(log_lines))
+        app = create_app(cfg or station(), self.query, self.do_acquire, self.log, lambda: list(log_lines))
         self.client = app.test_client()
 
     def query(self):
@@ -98,7 +98,7 @@ def test_acquiring_with_the_gateway_down_is_a_502(tmp_path):
 
 
 def test_recent_results_and_status_are_shown(tmp_path):
-    console = Console(tmp_path, [entry(accession="ACC-1"), entry(accession="ACC-2")], cfg=config(auto_acquire=True))
+    console = Console(tmp_path, [entry(accession="ACC-1"), entry(accession="ACC-2")], cfg=station(auto_acquire=True))
     console.log.append(result(entry(accession="ACC-1")))
     for _ in range(3):
         console.log.append(result(entry(accession="ACC-2"), ok=False, error="0xA700 from the gateway"))
@@ -126,7 +126,7 @@ def test_an_unexpected_error_while_acquiring_renders_the_page_with_the_message(t
 
     def boom(e):
         raise RuntimeError("disk on fire")
-    client = create_app(config(), c.query, boom, c.log).test_client()
+    client = create_app(station(), c.query, boom, c.log).test_client()
     response = client.post("/acquire", data={"accession": "A1"})
     assert response.status_code == 500
     body = response.get_data(as_text=True)

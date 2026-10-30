@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import sys
 import threading
 from datetime import datetime
@@ -24,11 +23,12 @@ PORT = 8080
 
 
 def build(cfg: config.Config, recent: RecentLogs | None = None) -> tuple[Flask, AutoAcquirer | None]:
+    station = cfg.stations[0]
     results = AcquisitionLog(cfg.data_dir / "acquisitions.jsonl")
     lock = threading.Lock()  # one acquisition at a time, from the console or auto-acquire
 
     def query() -> list[WorklistEntry]:
-        return mwl.query_worklist(cfg)
+        return mwl.query_worklist(station)
 
     def do_acquire(entry: WorklistEntry, only_if_new: bool = False) -> acquire.AcquisitionResult | None:
         """Acquires entry and logs the outcome. only_if_new (auto-acquire) skips an accession that is
@@ -39,7 +39,7 @@ def build(cfg: config.Config, recent: RecentLogs | None = None) -> tuple[Flask, 
                 if history and (history.stored or history.failures >= MAX_ATTEMPTS):
                     return None
             try:
-                result = acquire.acquire(entry, cfg)
+                result = acquire.acquire(entry, station)
             except Exception as e:
                 log.exception("Acquiring accession %s failed unexpectedly", entry.accession_number)
                 result = acquire.AcquisitionResult(
@@ -59,9 +59,9 @@ def build(cfg: config.Config, recent: RecentLogs | None = None) -> tuple[Flask, 
             log.warning("Acquiring accession %s failed: %s", result.accession_number, result.error)
         return result
 
-    auto = AutoAcquirer(query, do_acquire, results) if cfg.auto_acquire else None
+    auto = AutoAcquirer(query, do_acquire, results) if station.auto_acquire else None
     log_lines = recent.lines if recent is not None else list
-    return web.create_app(cfg, query, do_acquire, results, log_lines), auto
+    return web.create_app(station, query, do_acquire, results, log_lines), auto
 
 
 def main() -> None:
@@ -70,10 +70,12 @@ def main() -> None:
     logging.getLogger().addHandler(recent)
     logging.getLogger("pynetdicom").setLevel(logging.WARNING)
     try:
-        cfg = config.load(os.environ)
+        cfg = config.load(config.CONFIG_PATH)
     except ConfigError as e:
         print(f"modality-simulator: {e}", file=sys.stderr)
         sys.exit(2)
+    for warning in config.overlaps(cfg.stations):
+        log.warning("%s", warning)
     app, auto = build(cfg, recent)
     if auto is not None:
         threading.Thread(
@@ -81,6 +83,6 @@ def main() -> None:
             name="auto-acquire", daemon=True,
         ).start()
     log.info("Console on port %d; gateway %s at %s:%d; calling AE %s; auto-acquire %s",
-             PORT, cfg.gateway_ae, cfg.gateway_host, cfg.gateway_port, cfg.calling_ae,
-             "on" if cfg.auto_acquire else "off")
+             PORT, cfg.stations[0].gateway_ae, cfg.stations[0].gateway_host, cfg.stations[0].gateway_port,
+             cfg.stations[0].calling_ae, "on" if cfg.stations[0].auto_acquire else "off")
     waitress.serve(app, host="0.0.0.0", port=PORT)

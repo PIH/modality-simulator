@@ -1,7 +1,7 @@
 import pytest
 from pydicom.dataset import Dataset
 
-from factories import config
+from factories import station
 from modality_simulator import mwl
 from modality_simulator.errors import GatewayError
 from modality_simulator.mwl import WorklistEntry, build_query, collect, parse_entry
@@ -48,7 +48,7 @@ def test_parse_entry_without_a_step_sequence_has_no_modality():
 
 def test_collect_gathers_pending_matches_until_success():
     responses = [(status(0xFF00), identifier("A1")), (status(0xFF01), identifier("A2")), (status(0x0000), None)]
-    assert [e.accession_number for e in collect(responses, config())] == ["A1", "A2"]
+    assert [e.accession_number for e in collect(responses, station())] == ["A1", "A2"]
 
 
 def test_collect_keeps_only_configured_modalities():
@@ -56,7 +56,7 @@ def test_collect_keeps_only_configured_modalities():
         (status(0xFF00), identifier("A1", "CR")), (status(0xFF00), identifier("A2", "MR")),
         (status(0xFF00), identifier("A3", "US")), (status(0x0000), None),
     ]
-    entries = collect(responses, config(modalities=("CR",)))
+    entries = collect(responses, station(modalities=("CR",)))
     assert [e.accession_number for e in entries] == ["A1"]
 
 
@@ -65,27 +65,27 @@ def test_collect_applies_the_station_filter_even_if_the_gateway_ignores_it():
         (status(0xFF00), identifier("A1", station="SIM_CR")),
         (status(0xFF00), identifier("A2", station="OTHER")), (status(0x0000), None),
     ]
-    entries = collect(responses, config(station_ae_filter="SIM_CR"))
+    entries = collect(responses, station(station_ae_filter="SIM_CR"))
     assert [e.accession_number for e in entries] == ["A1"]
 
 
 def test_a_failure_status_is_an_error_not_an_empty_worklist():
     with pytest.raises(GatewayError, match="0xA700"):
-        collect([(status(0xA700), None)], config())
+        collect([(status(0xA700), None)], station())
 
 
 def test_no_status_means_the_gateway_did_not_answer():
     with pytest.raises(GatewayError, match="didn't answer"):
-        collect([(Dataset(), None)], config())
+        collect([(Dataset(), None)], station())
 
 
 def test_responses_ending_without_a_final_status_are_an_error():
     with pytest.raises(GatewayError, match="without a final status"):
-        collect([(status(0xFF00), identifier())], config())
+        collect([(status(0xFF00), identifier())], station())
 
 
 def test_entry_without_accession_is_listed_but_not_acquirable():
-    entries = collect([(status(0xFF00), identifier(accession="")), (status(0x0000), None)], config())
+    entries = collect([(status(0xFF00), identifier(accession="")), (status(0x0000), None)], station())
     assert len(entries) == 1
     assert not entries[0].acquirable
 
@@ -105,7 +105,7 @@ def test_scheduled_is_shown_as_an_iso_date_and_time(date, time, shown):
 
 
 def test_build_query_asks_for_every_field_we_read_and_filters_by_station():
-    query = build_query(config(station_ae_filter="SIM_US"))
+    query = build_query(station(station_ae_filter="SIM_US"))
     for keyword in ("PatientName", "PatientID", "PatientBirthDate", "PatientSex",
                     "AccessionNumber", "RequestedProcedureDescription", "StudyInstanceUID"):
         assert keyword in query
@@ -137,7 +137,7 @@ def test_query_worklist_explains_a_gateway_that_accepts_the_association_but_not_
     fake = RefusingAssociation(error)
     monkeypatch.setattr(mwl.dicom_net, "associate", lambda cfg, syntaxes: fake)
     with pytest.raises(GatewayError) as e:
-        mwl.query_worklist(config(calling_ae="SIM_X"))
+        mwl.query_worklist(station(calling_ae="SIM_X"))
     assert "accepted the association but not the worklist query" in str(e.value)
     assert "SIM_X" in str(e.value) and "TEST_GW" in str(e.value)
     assert fake.released
@@ -159,7 +159,7 @@ def test_query_worklist_logs_the_query_and_every_raw_response(monkeypatch, caplo
                  (status(0x0000), None)]
     monkeypatch.setattr(mwl.dicom_net, "associate", lambda cfg, syntaxes: AnsweringAssociation(responses))
     with caplog.at_level("INFO", logger="modality_simulator.mwl"):
-        entries = mwl.query_worklist(config(calling_ae="SIM_X"))
+        entries = mwl.query_worklist(station(calling_ae="SIM_X"))
     assert [e.accession_number for e in entries] == ["A1"]
     messages = [r.getMessage() for r in caplog.records]
     assert "SIM_X" in messages[0] and "TEST_GW" in messages[0] and "Scheduled Procedure Step Status" in messages[0]

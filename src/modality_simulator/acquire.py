@@ -10,7 +10,7 @@ from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid
 
 from modality_simulator import dicom_net, images
-from modality_simulator.config import Config
+from modality_simulator.config import Station
 from modality_simulator.errors import GatewayError
 from modality_simulator.mwl import WorklistEntry
 
@@ -52,7 +52,7 @@ class AcquisitionResult:
         return not self.error and bool(self.instances) and all(i.stored for i in self.instances)
 
 
-def stamp(datasets: Sequence[Dataset], entry: WorklistEntry, cfg: Config, now: datetime) -> list[Dataset]:
+def stamp(datasets: Sequence[Dataset], entry: WorklistEntry, cfg: Station, now: datetime) -> list[Dataset]:
     """Makes datasets one new series of entry's study, as if this modality had just taken them."""
     study_uid = entry.study_instance_uid or generate_uid()
     series_uid = generate_uid()
@@ -98,7 +98,7 @@ def stamp(datasets: Sequence[Dataset], entry: WorklistEntry, cfg: Config, now: d
     return list(datasets)
 
 
-def send_all(datasets: Sequence[Dataset], cfg: Config) -> tuple[InstanceStatus, ...]:
+def send_all(datasets: Sequence[Dataset], cfg: Station) -> tuple[InstanceStatus, ...]:
     """C-STOREs each dataset on one association; raises GatewayError only if there's no association."""
     assoc = dicom_net.associate(cfg, sorted({str(ds.SOPClassUID) for ds in datasets}))
     statuses = []
@@ -121,11 +121,11 @@ def send_all(datasets: Sequence[Dataset], cfg: Config) -> tuple[InstanceStatus, 
 
 def acquire(
     entry: WorklistEntry,
-    cfg: Config,
+    cfg: Station,
     *,
     now: Callable[[], datetime] = datetime.now,
-    pick_images: Callable[[WorklistEntry, Config], tuple[list[Dataset], str]] = images.images_for,
-    send: Callable[[Sequence[Dataset], Config], tuple[InstanceStatus, ...]] = send_all,
+    pick_images: Callable[[WorklistEntry, Station], tuple[list[Dataset], str]] = images.images_for,
+    send: Callable[[Sequence[Dataset], Station], tuple[InstanceStatus, ...]] = send_all,
 ) -> AcquisitionResult:
     at = now()
     about = dict(

@@ -9,7 +9,7 @@ import requests
 from pydicom.dataset import Dataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
-from modality_simulator.config import Config
+from modality_simulator.config import Station
 
 HERE = Path(__file__).parent
 COMPOSE = ["docker", "compose", "-f", str(HERE / "docker-compose.yml"), "-p", "modality-simulator-it"]
@@ -75,7 +75,7 @@ def gateway():
     subprocess.run([*COMPOSE, "up", "-d"], check=True)
     try:
         wait_for(f"{REST}/system")
-        yield Config(gateway_ae="TEST_GW", gateway_host="localhost", gateway_port=14242, calling_ae="SIM_TEST")
+        yield Station(name="Test", calling_ae="SIM_TEST", gateway_ae="TEST_GW", gateway_host="localhost", gateway_port=14242)
     finally:
         subprocess.run([*COMPOSE, "down", "-v"], check=False)
 

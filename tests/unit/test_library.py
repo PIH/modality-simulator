@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from pydicom.uid import ExplicitVRLittleEndian
 
-from factories import config, entry, write_library_file
+from factories import station, entry, write_library_file
 from modality_simulator.images import SYNTHETIC, from_library, images_for
 
 
@@ -12,7 +12,7 @@ def first(candidates):
 
 
 def test_no_library_directory_means_generated_images(tmp_path):
-    datasets, source = images_for(entry("CR"), config(image_dir=tmp_path / "missing"))
+    datasets, source = images_for(entry("CR"), station(image_dir=tmp_path / "missing"))
     assert source == SYNTHETIC
     assert len(datasets) == 1
 
@@ -20,14 +20,14 @@ def test_no_library_directory_means_generated_images(tmp_path):
 def test_picks_a_file_of_the_entrys_modality(tmp_path):
     write_library_file(tmp_path / "a-cr.dcm", "CR")
     write_library_file(tmp_path / "nested" / "b-us.dcm", "US")
-    datasets, source = images_for(entry("US"), config(image_dir=tmp_path), choose=first)
+    datasets, source = images_for(entry("US"), station(image_dir=tmp_path), choose=first)
     assert source == "b-us.dcm"
     assert datasets[0].Modality == "US"
 
 
 def test_no_file_of_the_modality_means_generated_images(tmp_path):
     write_library_file(tmp_path / "a-cr.dcm", "CR")
-    _, source = images_for(entry("CT"), config(image_dir=tmp_path))
+    _, source = images_for(entry("CT"), station(image_dir=tmp_path))
     assert source == SYNTHETIC
 
 
@@ -51,7 +51,7 @@ def test_undecodable_library_file_is_skipped(tmp_path, caplog):
     write_library_file(path, "CR")
     path.write_bytes(path.read_bytes()[:-5000])
     with caplog.at_level(logging.WARNING):
-        datasets, source = images_for(entry("CR"), config(image_dir=tmp_path))
+        datasets, source = images_for(entry("CR"), station(image_dir=tmp_path))
     assert source == SYNTHETIC
     assert "truncated.dcm" in caplog.text
 
@@ -61,5 +61,5 @@ def test_a_bad_file_is_skipped_for_a_good_one(tmp_path):
     write_library_file(bad, "CR")
     bad.write_bytes(bad.read_bytes()[:-5000])
     write_library_file(tmp_path / "b-good.dcm", "CR")
-    _, source = images_for(entry("CR"), config(image_dir=tmp_path), choose=first)
+    _, source = images_for(entry("CR"), station(image_dir=tmp_path), choose=first)
     assert source == "b-good.dcm"

@@ -9,7 +9,7 @@ services:
       ORTHANC__DICOM_ALWAYS_ALLOW_FIND: "true"
       ORTHANC__DICOM_ALWAYS_ALLOW_STORE: "true"
       # Orthanc rejects worklist queries from AEs it doesn't know, whatever DicomAlwaysAllowFind says.
-      ORTHANC__DICOM_MODALITIES: '{"sim": ["SIM_TEST", "127.0.0.1", 11112]}'
+      ORTHANC__DICOM_MODALITIES: '{"sim": ["SIM_TEST", "127.0.0.1", 11112], "cr": ["SIM_CR", "127.0.0.1", 11112], "us": ["SIM_US", "127.0.0.1", 11112]}'
       ORTHANC__AUTHENTICATION_ENABLED: "false"
       WORKLISTS_PLUGIN_ENABLED: "true"
       ORTHANC__WORKLISTS__ENABLE: "true"

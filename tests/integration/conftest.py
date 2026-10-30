@@ -95,3 +95,18 @@ def instance_count(study: dict) -> int:
     response = requests.get(f"{REST}/studies/{study['ID']}/instances", timeout=10)
     response.raise_for_status()
     return len(response.json())
+
+
+
+def station_name(sop_instance_uid: str) -> str:
+    """The StationName of the stored instance with this SOP Instance UID."""
+    response = requests.post(
+        f"{REST}/tools/find",
+        json={"Level": "Instance", "Query": {"SOPInstanceUID": sop_instance_uid}},
+        timeout=10,
+    )
+    response.raise_for_status()
+    [instance_id] = response.json()
+    tags = requests.get(f"{REST}/instances/{instance_id}/simplified-tags", timeout=10)
+    tags.raise_for_status()
+    return tags.json().get("StationName", "")

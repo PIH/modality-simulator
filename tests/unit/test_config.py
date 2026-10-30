@@ -131,3 +131,21 @@ def test_overlaps_warns_about_stations_that_would_see_the_same_entries():
     assert "CR1" in warning and "CR2" in warning and "CR" in warning
     same_room = dict(modalities=("US",), station_ae_filter="ROOM")
     assert len(overlaps([station(calling_ae="A", **same_room), station(calling_ae="B", **same_room)])) == 1
+
+
+def test_an_unreadable_directory_names_the_path(tmp_path):
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    write(config_dir, KOL_CI)
+    config_dir.chmod(0)
+    try:
+        with pytest.raises(ConfigError, match=r"Couldn't read the stations file .*stations.yaml"):
+            load(config_dir / "stations.yaml")
+    finally:
+        config_dir.chmod(0o755)
+
+
+def test_a_file_that_isnt_utf8_is_reported(tmp_path):
+    (tmp_path / "stations.yaml").write_bytes(b"gateway: {ae: \xff\xfe}")
+    with pytest.raises(ConfigError, match=r"Couldn't read the stations file .*stations.yaml"):
+        load(tmp_path / "stations.yaml")

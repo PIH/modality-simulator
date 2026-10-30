@@ -49,16 +49,16 @@ class Config:
 
 def load(path: Path = CONFIG_PATH) -> Config:
     """Reads the stations file; raises ConfigError naming the file and the bad field."""
-    if path.is_dir():
-        raise ConfigError(f"{path} is a directory: it must be the stations file")
     try:
+        if path.is_dir():
+            raise ConfigError(f"{path} is a directory: it must be the stations file")
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError:
         raise ConfigError(
             f"No stations file at {path}: with distro-tools, it's modality-simulator-config/stations.yaml "
             f"in the instance directory"
         ) from None
-    except OSError as e:
+    except (OSError, UnicodeDecodeError) as e:  # e.g. a directory the simulator's user can't read
         raise ConfigError(f"Couldn't read the stations file {path}: {e}") from None
     try:
         data = yaml.safe_load(text)

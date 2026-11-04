@@ -67,6 +67,19 @@ jobs:
           token: ${{ secrets.GHA_WRITE_TOKEN }}
           phase: finished
 
+  # Runs puppet for kol-ci on its host, which pulls the new image and restarts the simulator. Only for main: a tag
+  # publishes a version, not latest, which is what kol-ci runs.
+  deploy-to-kol-ci:
+    needs: publish
+    if: github.ref == 'refs/heads/main'
+    uses: PIH/openmrs-contrib-distro-tools/.github/workflows/deploy-via-runner.yml@main
+    with:
+      runner-label: appclstr-01
+      instances: kol-ci
+      host: false
+      notify_ci_dashboard: true
+    secrets: inherit
+
   scan:
     needs: publish
     uses: PIH/openmrs-contrib-distro-tools/.github/workflows/scan-docker-image.yml@main

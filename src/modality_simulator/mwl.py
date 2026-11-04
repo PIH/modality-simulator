@@ -32,6 +32,7 @@ class WorklistEntry:
     station_ae: str = ""
     scheduled_date: str = ""
     scheduled_time: str = ""
+    location: str = ""
 
     @property
     def acquirable(self) -> bool:
@@ -71,6 +72,7 @@ def build_query(cfg: Station) -> Dataset:
     step.ScheduledProcedureStepStartTime = ""
     # Not read into entries: asked for so the raw responses in the log show what the gateway reports.
     step.ScheduledProcedureStepStatus = ""
+    step.ScheduledProcedureStepLocation = ""
     ds.ScheduledProcedureStepSequence = [step]
     return ds
 
@@ -90,6 +92,7 @@ def parse_entry(identifier: Dataset) -> WorklistEntry:
         station_ae=_text(step, "ScheduledStationAETitle"),
         scheduled_date=_text(step, "ScheduledProcedureStepStartDate"),
         scheduled_time=_text(step, "ScheduledProcedureStepStartTime"),
+        location=_text(step, "ScheduledProcedureStepLocation"),
     )
 
 

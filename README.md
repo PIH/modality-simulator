@@ -22,16 +22,23 @@ institution: OpenMRS Modality Simulator   # default; written into every image
 poll_seconds: 30                          # default; how often auto-acquire reads the worklist
 stations:
   - name: X-ray
-    calling_ae: KOL-CI_CR
+    location: Botsabelo
+    calling_ae: KOL-CI_BOTS_CR
     modalities: [CR]
   - name: Ultrasound
-    calling_ae: KOL-CI_US
+    location: Botsabelo
+    calling_ae: KOL-CI_BOTS_US
     modalities: [US]
+  - name: X-ray
+    location: Motebang
+    calling_ae: KOL-CI_MOTE_CR
+    modalities: [CR]
 ```
 
 | Station field | Default | |
 |---|---|---|
 | `name` | must be set | the tab's label |
+| `location` | empty | the facility the station is at: added to the tab's label ("X-ray at Botsabelo") and written into its images as the Institution Name, instead of `institution` |
 | `calling_ae` | must be set | the station's AE title: 1-16 letters, digits, `.`, `_` or `-`, unique |
 | `modalities` | must be set | which worklist entries it shows: any of `CR`, `US`, `CT` |
 | `station_ae_filter` | empty | only entries scheduled for this station AE |
@@ -54,6 +61,16 @@ The console is at `http://<host>:8095`. See distro-tools' `docs/services.md` for
 
 The container serves its console on port 8080, keeps each station's acquisition log in
 `/data/<calling_ae>/`, and reads its image library from `/images`.
+
+## Locations
+
+A station's `location` is only shown and written into its images: the worklist query doesn't
+send it. Which entries a station sees is up to AdvaPACS, from the station's Remote AE (e.g. the
+Site it's assigned to). Until AdvaPACS filters by Site, two stations with the same modality at
+different locations see the same entries, and the startup warning about them applies.
+
+If the gateway's worklist entries have a Scheduled Procedure Step Location, the worklist shows it
+in a Location column, so you can check that each station only gets its own location's entries.
 
 ## Setting up AdvaPACS
 

@@ -149,3 +149,25 @@ def test_a_file_that_isnt_utf8_is_reported(tmp_path):
     (tmp_path / "stations.yaml").write_bytes(b"gateway: {ae: \xff\xfe}")
     with pytest.raises(ConfigError, match=r"Couldn't read the stations file .*stations.yaml"):
         load(tmp_path / "stations.yaml")
+
+
+def test_a_station_location_is_its_label_and_the_institution_in_its_images(tmp_path):
+    cfg = load(write(tmp_path, """
+gateway: {ae: GW}
+institution: Test Hospital
+stations:
+  - {name: X-ray, location: " Botsabelo ", calling_ae: BOTS_CR, modalities: [CR]}
+  - {name: X-ray, calling_ae: OTHER_CR, modalities: [CR]}
+"""))
+    bots, other = cfg.stations
+    assert bots.location == "Botsabelo"
+    assert bots.label == "X-ray at Botsabelo"
+    assert bots.institution == "Botsabelo"
+    assert other.location == ""
+    assert other.label == "X-ray"
+    assert other.institution == "Test Hospital"
+
+
+def test_a_location_must_be_text(tmp_path):
+    with pytest.raises(ConfigError, match=r"stations\[1\]\.location must be text"):
+        load(write(tmp_path, "gateway: {ae: GW}\nstations:\n  - {name: X, location: [a], calling_ae: S, modalities: [CR]}\n"))

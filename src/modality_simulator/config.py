@@ -21,7 +21,7 @@ _CALLING_AE = re.compile(r"[A-Za-z0-9._-]{1,16}")
 
 _TOP_KEYS = ("gateway", "institution", "poll_seconds", "stations")
 _GATEWAY_KEYS = ("ae", "host", "port")
-_STATION_KEYS = ("name", "calling_ae", "modalities", "station_ae_filter", "auto_acquire")
+_STATION_KEYS = ("name", "location", "calling_ae", "modalities", "station_ae_filter", "auto_acquire")
 
 
 @dataclass(frozen=True)
@@ -38,6 +38,13 @@ class Station:
     institution: str = "OpenMRS Modality Simulator"
     auto_acquire: bool = False
     image_dir: Path = Path("/images")
+    # Only shown, and written into images: the gateway decides which entries a station sees from its AE.
+    location: str = ""
+
+    @property
+    def label(self) -> str:
+        """The station's name, with its location if it has one, e.g. "X-ray at Botsabelo"."""
+        return f"{self.name} at {self.location}" if self.location else self.name
 
 
 @dataclass(frozen=True)
@@ -131,8 +138,12 @@ def _station(where: str, item: Any, shared: dict[str, Any]) -> Station:
             f"{where}.calling_ae must be 1-16 letters, digits, '.', '_' or '-' (it names the station's tab "
             f"and data directory): {calling_ae!r}"
         )
+    location = _text(f"{where}.location", item.get("location", ""))
+    if location:
+        shared = {**shared, "institution": location}
     return Station(
         name=_text(f"{where}.name", item["name"]),
+        location=location,
         calling_ae=calling_ae,
         modalities=_modalities(f"{where}.modalities", item["modalities"]),
         station_ae_filter=_ae_title(f"{where}.station_ae_filter", item.get("station_ae_filter", ""), allow_empty=True),

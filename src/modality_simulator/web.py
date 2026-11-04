@@ -19,7 +19,7 @@ PAGE = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>{% if console %}{{ console.station.name }} — {% endif %}Modality simulator</title>
+<title>{% if console %}{{ console.station.label }} — {% endif %}Modality simulator</title>
 <style>
   body { font-family: system-ui, sans-serif; margin: 1.5rem; }
   table { border-collapse: collapse; width: 100%; margin-bottom: 2rem; }
@@ -38,27 +38,28 @@ PAGE = """<!doctype html>
 <h1>Modality simulator</h1>
 <nav aria-label="Stations">
   {% for c in consoles %}
-  <a href="{{ url_for('station_page', calling_ae=c.station.calling_ae) }}"{% if c is sameas console %} aria-current="page"{% endif %}>{{ c.station.name }}</a>
+  <a href="{{ url_for('station_page', calling_ae=c.station.calling_ae) }}"{% if c is sameas console %} aria-current="page"{% endif %}>{{ c.station.label }}</a>
   {% endfor %}
 </nav>
 {% if error %}<div class="banner" role="alert">{{ error }}</div>{% endif %}
 {% if notice %}<div class="banner" role="status">{{ notice }}</div>{% endif %}
 {% if console %}
 {% set cfg = console.station %}
-<p>{{ cfg.calling_ae }} &rarr; {{ cfg.gateway_ae }} at {{ cfg.gateway_host }}:{{ cfg.gateway_port }}
+<p>{{ cfg.calling_ae }}{% if cfg.location %} at {{ cfg.location }}{% endif %} &rarr; {{ cfg.gateway_ae }} at {{ cfg.gateway_host }}:{{ cfg.gateway_port }}
   &middot; {{ cfg.modalities | join(", ") }}
   &middot; auto-acquire {{ "on" if cfg.auto_acquire else "off" }}</p>
 
 <h2>Worklist</h2>
 {% if entries %}
+{% set show_location = entries | selectattr("location") | list %}
 <table>
   <tr><th>Patient</th><th>ID</th><th>Accession</th><th>Procedure</th><th>Modality</th>
-      <th>Station</th><th>Scheduled</th><th>Status</th><th></th></tr>
+      <th>Station</th>{% if show_location %}<th>Location</th>{% endif %}<th>Scheduled</th><th>Status</th><th></th></tr>
   {% for e in entries %}
   {% set h = history.get(e.accession_number) if e.accession_number else none %}
   <tr>
     <td>{{ e.patient_name }}</td><td>{{ e.patient_id }}</td><td>{{ e.accession_number }}</td>
-    <td>{{ e.procedure }}</td><td>{{ e.modality }}</td><td>{{ e.station_ae }}</td><td>{{ e.scheduled }}</td>
+    <td>{{ e.procedure }}</td><td>{{ e.modality }}</td><td>{{ e.station_ae }}</td>{% if show_location %}<td>{{ e.location }}</td>{% endif %}<td>{{ e.scheduled }}</td>
     <td>
       {% if h and h.stored %}<span class="ok">stored</span>
       {% elif h and h.failures %}<span class="failed">failed {{ h.failures }}&times;{% if cfg.auto_acquire and h.failures >= max_attempts %} (auto-acquire gave up){% endif %}</span>

@@ -229,3 +229,18 @@ def test_the_recent_log_is_on_every_tab(tmp_path):
     c = two_stations(tmp_path, log_lines=["line one"])
     assert "line one" in c.client.get(CR).get_data(as_text=True)
     assert "line one" in c.client.get(US).get_data(as_text=True)
+
+
+def test_a_station_with_a_location_shows_it_on_its_tab_and_page(tmp_path):
+    html = Console(tmp_path, cfg=station(location="Botsabelo")).client.get(CR).get_data(as_text=True)
+    assert f'<a href="{CR}" aria-current="page">X-ray at Botsabelo</a>' in html
+    assert "<title>X-ray at Botsabelo — Modality simulator</title>" in html
+    assert "SIM_CR at Botsabelo &rarr;" in html
+
+
+def test_the_worklist_shows_a_location_column_only_when_the_gateway_sends_one(tmp_path):
+    without = Console(tmp_path / "a", [entry()]).client.get(CR).get_data(as_text=True)
+    assert "<th>Location</th>" not in without
+    html = Console(tmp_path / "b", [entry(location="Motebang"), entry(accession="ACC-2")]).client.get(CR).get_data(as_text=True)
+    assert "<th>Location</th>" in html
+    assert "<td>Motebang</td>" in html

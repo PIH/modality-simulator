@@ -166,3 +166,15 @@ def test_query_worklist_logs_the_query_and_every_raw_response(monkeypatch, caplo
     assert "0xFF00" in messages[1] and "A1" in messages[1]
     assert "0xFF00" in messages[2] and "A2" in messages[2]  # filtered out of the worklist, but logged
     assert "0x0000" in messages[3]
+
+
+def test_build_query_asks_for_the_scheduled_location():
+    step = build_query(station()).ScheduledProcedureStepSequence[0]
+    assert step.ScheduledProcedureStepLocation == ""
+
+
+def test_parse_entry_reads_the_scheduled_location():
+    ds = identifier()
+    ds.ScheduledProcedureStepSequence[0].ScheduledProcedureStepLocation = " Botsabelo "
+    assert parse_entry(ds).location == "Botsabelo"
+    assert parse_entry(identifier()).location == ""

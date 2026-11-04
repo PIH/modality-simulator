@@ -97,6 +97,6 @@ def main() -> None:
     first = cfg.stations[0]
     log.info("Console on port %d; gateway %s at %s:%d", PORT, first.gateway_ae, first.gateway_host, first.gateway_port)
     for station in cfg.stations:
-        log.info("Station %s (%s): %s; auto-acquire %s", station.calling_ae, station.name,
+        log.info("Station %s (%s): %s; auto-acquire %s", station.calling_ae, station.label,
                  ", ".join(station.modalities), "on" if station.auto_acquire else "off")
     waitress.serve(app, host="0.0.0.0", port=PORT)
